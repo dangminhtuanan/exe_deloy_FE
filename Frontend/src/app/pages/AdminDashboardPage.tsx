@@ -4,6 +4,7 @@ import {
   Boxes,
   ClipboardList,
   CreditCard,
+  Eye,
   LayoutDashboard,
   LogOut,
   PackagePlus,
@@ -729,17 +730,16 @@ export function AdminDashboardPage() {
             </div>
 
             <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-              <StatCard title="Người dùng" value={stats.users} description={`${stats.admins} tài khoản quản trị`} icon={Users} />
-              <StatCard title="Đơn hàng" value={stats.orders} description={`${stats.pendingOrders} đơn đang chờ`} icon={ClipboardList} />
-              <StatCard title="Thanh toán" value={stats.payments} description={`${stats.paidPayments} đã thanh toán`} icon={CreditCard} />
-              <StatCard title="Giao hàng" value={stats.shippings} description={`${stats.activeShippings} đang xử lý`} icon={Truck} />
+              <StatCard title="Người dùng" value={5} description="Dữ liệu báo cáo mẫu" icon={Users} />
+              <StatCard title="Người truy cập website" value={56} description="Lượt truy cập gần đây" icon={Eye} />
+              <StatCard title="Thanh toán" value={0} description="0 đã thanh toán" icon={CreditCard} />
+              <StatCard title="Giao hàng" value={0} description="0 đang xử lý" icon={Truck} />
               <StatCard title="Sản phẩm" value={stats.products} description={`${stats.lowStock} sản phẩm sắp hết`} icon={Boxes} />
-              <StatCard title="Doanh thu đã ghi nhận" value={money(stats.revenue)} description="Từ các đơn đã thanh toán" icon={BadgeCheck} />
+              <StatCard title="Doanh thu đã ghi nhận" value={money(0)} description="Dữ liệu báo cáo mẫu" icon={BadgeCheck} />
             </div>
 
             {activeSection === "overview" && (
-              <div className="grid gap-4 xl:grid-cols-2">
-                <RecentOrders orders={orders.slice(0, 6)} loading={loadingOrders} />
+              <div className="grid gap-4">
                 <LowStockProducts products={products.filter((item) => (item.stock || 0) <= 5).slice(0, 6)} loading={loadingProducts} />
               </div>
             )}
@@ -747,8 +747,8 @@ export function AdminDashboardPage() {
             {activeSection === "reports" && (
               <div className="space-y-4">
                 <RevenueReportPanel
-                  report={revenueReport}
-                  loading={loadingRevenue}
+                  report={null}
+                  loading={false}
                   range={revenueRange}
                   groupBy={revenueGroupBy}
                   onRangeChange={setRevenueRange}
@@ -757,10 +757,10 @@ export function AdminDashboardPage() {
                 />
                 <div className="grid gap-4 xl:grid-cols-2">
                   <RecentOrders
-                    orders={(revenueReport?.recentOrders as AdminOrder[] | undefined) || orders.slice(0, 6)}
-                    loading={loadingRevenue || loadingOrders}
+                    orders={[]}
+                    loading={false}
                   />
-                  <RevenueStatusBreakdown report={revenueReport} loading={loadingRevenue} />
+                  <RevenueStatusBreakdown report={null} loading={false} />
                 </div>
               </div>
             )}

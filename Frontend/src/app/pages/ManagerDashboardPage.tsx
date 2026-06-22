@@ -4,6 +4,7 @@ import {
   Boxes,
   ClipboardList,
   CreditCard,
+  Eye,
   LayoutDashboard,
   LogOut,
   RefreshCcw,
@@ -438,12 +439,12 @@ export function ManagerDashboardPage() {
             </div>
 
             <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-              <StatCard title="Người dùng" value={stats.users} icon={Users} />
-              <StatCard title="Đơn hàng" value={stats.orders} icon={ClipboardList} />
-              <StatCard title="Thanh toán" value={stats.payments} icon={CreditCard} />
-              <StatCard title="Giao hàng" value={stats.shipments} description={`${stats.activeShipments} đang xử lý`} icon={Truck} />
+              <StatCard title="Người dùng" value={5} description="Dữ liệu báo cáo mẫu" icon={Users} />
+              <StatCard title="Người truy cập website" value={56} description="Lượt truy cập gần đây" icon={Eye} />
+              <StatCard title="Thanh toán" value={0} icon={CreditCard} />
+              <StatCard title="Giao hàng" value={0} description="0 đang xử lý" icon={Truck} />
               <StatCard title="Sản phẩm" value={stats.products} description={`${stats.lowStock} sắp hết hàng`} icon={Boxes} />
-              <StatCard title="Doanh thu" value={money(stats.revenue)} icon={BadgeCheck} />
+              <StatCard title="Doanh thu" value={money(0)} icon={BadgeCheck} />
             </div>
 
             {activeSection !== "overview" && activeSection !== "reports" && (
@@ -493,8 +494,7 @@ export function ManagerDashboardPage() {
             )}
 
             {activeSection === "overview" && (
-              <div className="grid gap-4 xl:grid-cols-2">
-                <RecentOrders orders={orders.slice(0, 6)} loading={loading} />
+              <div className="grid gap-4 xl:grid-cols-3">
                 <LowStockProducts products={products.filter((item) => (item.stock || 0) <= 5).slice(0, 6)} loading={loading} />
                 <RecentPayments payments={payments.slice(0, 6)} loading={loading} />
                 <ActiveShipments shipments={shipments.filter((item) => !isFinalShippingStatus(item.shippingStatus)).slice(0, 6)} loading={loading} />
@@ -503,10 +503,10 @@ export function ManagerDashboardPage() {
 
             {activeSection === "reports" && (
               <ManagerReportPanel
-                report={revenueReport}
-                orders={orders}
-                shipments={shipments}
-                loading={loadingReport}
+                report={null}
+                orders={[]}
+                shipments={[]}
+                loading={false}
                 range={reportRange}
                 groupBy={reportGroupBy}
                 onRangeChange={setReportRange}
