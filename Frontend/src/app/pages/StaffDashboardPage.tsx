@@ -64,14 +64,11 @@ const orderStatuses: Order["status"][] = [
 const orderPaymentStatuses: Order["paymentStatus"][] = ["unpaid", "pending", "paid", "failed", "refunded"];
 
 const paymentStatuses: PaymentStatus[] = [
-  "pending",
-  "paid",
-  "failed",
-  "refunded",
   "PENDING",
   "PAID",
   "CANCELLED",
   "FAILED",
+  "REFUNDED",
 ];
 
 function money(value?: number) {
@@ -131,11 +128,11 @@ export function StaffDashboardPage() {
       orders: orders.length,
       pendingOrders: orders.filter((item) => ["pending", "PENDING_PAYMENT"].includes(item.status)).length,
       payments: payments.length,
-      paidPayments: payments.filter((item) => ["paid", "PAID"].includes(item.status)).length,
+      paidPayments: payments.filter((item) => item.status === "PAID").length,
       products: products.length,
       lowStock: products.filter((item) => (item.stock || 0) <= 5).length,
       revenue: payments
-        .filter((item) => ["paid", "PAID"].includes(item.status))
+        .filter((item) => item.status === "PAID")
         .reduce((total, item) => total + item.amount, 0),
     }),
     [orders, payments, products],
@@ -153,9 +150,10 @@ export function StaffDashboardPage() {
   const filteredPayments = payments.filter((item) => {
     const paymentUser = typeof item.user === "object" ? item.user : null;
     const order = typeof item.order === "object" ? item.order : null;
+    const aiTransaction = typeof item.aiTransaction === "object" ? item.aiTransaction : null;
     return (
       !keyword ||
-      [item._id, item.provider, item.status, item.transactionNo, item.transactionReference, item.orderCode, paymentUser?.email, paymentUser?.username, order?._id].some((value) =>
+      [item._id, item.targetType, item.provider, item.status, item.transactionNo, item.transactionReference, item.orderCode, paymentUser?.email, paymentUser?.username, order?._id, aiTransaction?._id].some((value) =>
         String(value || "").toLowerCase().includes(keyword),
       )
     );
@@ -434,7 +432,7 @@ export function StaffDashboardPage() {
                       <TableHead>Nhà cung cấp</TableHead>
                       <TableHead>Số tiền</TableHead>
                       <TableHead>Trạng thái</TableHead>
-                      <TableHead>Đơn hàng</TableHead>
+                      <TableHead>Đối tượng</TableHead>
                       <TableHead>Ngày tạo</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -442,6 +440,7 @@ export function StaffDashboardPage() {
                     {loading ? <EmptyRow colSpan={7} /> : filteredPayments.map((item) => {
                       const paymentUser = typeof item.user === "object" ? item.user : null;
                       const order = typeof item.order === "object" ? item.order : null;
+                      const aiTransaction = typeof item.aiTransaction === "object" ? item.aiTransaction : null;
                       return (
                         <TableRow key={item._id}>
                           <TableCell className="font-mono text-xs">#{item._id.slice(-8).toUpperCase()}</TableCell>
@@ -461,7 +460,15 @@ export function StaffDashboardPage() {
                               {paymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
                             </select>
                           </TableCell>
-                          <TableCell className="font-mono text-xs">{order?._id ? `#${order._id.slice(-8).toUpperCase()}` : "--"}</TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {item.targetType === "AI_PACKAGE"
+                              ? aiTransaction?._id
+                                ? `AI #${aiTransaction._id.slice(-8).toUpperCase()}`
+                                : "AI package"
+                              : order?._id
+                                ? `#${order._id.slice(-8).toUpperCase()}`
+                                : "--"}
+                          </TableCell>
                           <TableCell>{dateTime(item.createdAt)}</TableCell>
                         </TableRow>
                       );

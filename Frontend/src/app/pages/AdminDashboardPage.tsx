@@ -154,14 +154,11 @@ const paymentStatuses: Order["paymentStatus"][] = [
 ];
 
 const adminPaymentStatuses: PaymentStatus[] = [
-  "pending",
-  "paid",
-  "failed",
-  "refunded",
   "PENDING",
   "PAID",
   "CANCELLED",
   "FAILED",
+  "REFUNDED",
 ];
 
 const shippingStatuses: ShippingStatus[] = [
@@ -403,7 +400,7 @@ export function AdminDashboardPage() {
       orders: orders.length,
       pendingOrders: orders.filter((item) => ["pending", "PENDING_PAYMENT"].includes(item.status)).length,
       payments: payments.length,
-      paidPayments: payments.filter((item) => ["paid", "PAID"].includes(item.status)).length,
+      paidPayments: payments.filter((item) => item.status === "PAID").length,
       shippings: shippings.length,
       activeShippings: shippings.filter((item) => !["delivered", "failed", "returned", "cancelled"].includes(item.shippingStatus)).length,
       products: products.length,
@@ -432,8 +429,9 @@ export function AdminDashboardPage() {
     const keyword = paymentSearch.trim().toLowerCase();
     if (!keyword) return true;
     const order = typeof item.order === "object" ? item.order : null;
+    const aiTransaction = typeof item.aiTransaction === "object" ? item.aiTransaction : null;
     const paymentUser = typeof item.user === "object" ? item.user : null;
-    return [item._id, item.provider, item.status, item.transactionNo, item.transactionReference, item.orderCode, order?._id, paymentUser?.email, paymentUser?.username]
+    return [item._id, item.targetType, item.provider, item.status, item.transactionNo, item.transactionReference, item.orderCode, order?._id, aiTransaction?._id, paymentUser?.email, paymentUser?.username]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(keyword));
   });
@@ -938,7 +936,7 @@ export function AdminDashboardPage() {
                         <TableHead>Nhà cung cấp</TableHead>
                         <TableHead>Số tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>
-                        <TableHead>Order</TableHead>
+                        <TableHead>Đối tượng</TableHead>
                         <TableHead>Ngày tạo</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -951,6 +949,7 @@ export function AdminDashboardPage() {
                         filteredPayments.map((item) => {
                           const paymentUser = typeof item.user === "object" ? item.user : null;
                           const order = typeof item.order === "object" ? item.order : null;
+                          const aiTransaction = typeof item.aiTransaction === "object" ? item.aiTransaction : null;
                           return (
                             <TableRow key={item._id}>
                               <TableCell className="font-mono text-xs">#{item._id.slice(-8).toUpperCase()}</TableCell>
@@ -969,7 +968,15 @@ export function AdminDashboardPage() {
                                   {adminPaymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
                                 </select>
                               </TableCell>
-                              <TableCell className="font-mono text-xs">{order?._id ? `#${order._id.slice(-8).toUpperCase()}` : "--"}</TableCell>
+                              <TableCell className="font-mono text-xs">
+                                {item.targetType === "AI_PACKAGE"
+                                  ? aiTransaction?._id
+                                    ? `AI #${aiTransaction._id.slice(-8).toUpperCase()}`
+                                    : "AI package"
+                                  : order?._id
+                                    ? `#${order._id.slice(-8).toUpperCase()}`
+                                    : "--"}
+                              </TableCell>
                               <TableCell>{dateTime(item.createdAt)}</TableCell>
                             </TableRow>
                           );

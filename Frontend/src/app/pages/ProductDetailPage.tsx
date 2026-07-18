@@ -582,6 +582,10 @@ export function ProductDetailPage() {
 
                 <Link
                   to="/use-ai"
+                  state={{
+                    returnTo: `/product/${id}`,
+                    selectedProductId: product.productId || product._id || product.id,
+                  }}
                   className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold py-3.5 rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
                 >
                   <Wand2 className="w-5 h-5" /> Thử nghiệm với AI

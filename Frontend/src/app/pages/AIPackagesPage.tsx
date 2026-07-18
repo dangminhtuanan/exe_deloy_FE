@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { aiPackageApi, getErrorMessage } from "../lib/api";
+import { saveAIPaymentContext } from "../lib/payment-storage";
 import { useAuth } from "../contexts/AuthContext";
 import type { AIPackage, AITransaction, AITransactionStatus } from "../types";
 
@@ -57,13 +58,9 @@ const packageNameOf = (transaction: AITransaction) => {
 };
 
 const statusMeta: Record<AITransactionStatus, { label: string; className: string }> = {
-  pending: { label: "Đang chờ", className: "bg-amber-50 text-amber-700 border-amber-200" },
   PENDING: { label: "Đang chờ", className: "bg-amber-50 text-amber-700 border-amber-200" },
-  paid: { label: "Đã thanh toán", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   PAID: { label: "Đã thanh toán", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  failed: { label: "Thất bại", className: "bg-red-50 text-red-700 border-red-200" },
   FAILED: { label: "Thất bại", className: "bg-red-50 text-red-700 border-red-200" },
-  cancelled: { label: "Đã hủy", className: "bg-gray-100 text-gray-700 border-gray-200" },
   CANCELLED: { label: "Đã hủy", className: "bg-gray-100 text-gray-700 border-gray-200" },
 };
 
@@ -78,7 +75,7 @@ export function AIPackagesPage() {
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
 
   const paidTransactions = useMemo(
-    () => transactions.filter((transaction) => ["paid", "PAID"].includes(transaction.status)),
+    () => transactions.filter((transaction) => transaction.status === "PAID"),
     [transactions],
   );
 
@@ -144,6 +141,13 @@ export function AIPackagesPage() {
 
     try {
       const response = await aiPackageApi.purchase(packageId);
+      saveAIPaymentContext({
+        amount: response.transaction.amount,
+        orderCode: response.transaction.orderCode,
+        packageName: response.transaction.packageName,
+        paymentId: response.transaction.paymentId,
+        transactionId: response.transaction.id,
+      });
       window.location.assign(response.transaction.checkoutUrl);
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -346,7 +350,7 @@ export function AIPackagesPage() {
                 </TableHeader>
                 <TableBody>
                   {transactions.map((transaction) => {
-                    const meta = statusMeta[transaction.status] || statusMeta.pending;
+                    const meta = statusMeta[transaction.status] || statusMeta.PENDING;
 
                     return (
                       <TableRow key={transaction._id}>

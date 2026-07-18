@@ -103,19 +103,15 @@ export interface Order {
   updatedAt?: string;
 }
 
-export type PaymentStatus =
-  | "pending"
-  | "paid"
-  | "failed"
-  | "refunded"
-  | "PENDING"
-  | "PAID"
-  | "CANCELLED"
-  | "FAILED";
+export type PaymentStatus = "PENDING" | "PAID" | "CANCELLED" | "FAILED" | "REFUNDED";
+
+export type PaymentTargetType = "ORDER" | "AI_PACKAGE";
 
 export interface Payment {
   _id: string;
-  order: string | Order;
+  targetType: PaymentTargetType;
+  order?: string | Order | null;
+  aiTransaction?: string | AITransaction | null;
   user: string | Pick<UserProfile, "_id" | "username" | "email" | "phone">;
   provider: "cod" | "momo" | "vnpay" | "bank_transfer" | "stripe" | "paypal" | "PAYOS";
   orderCode?: number;
@@ -126,6 +122,7 @@ export interface Payment {
   transactionNo?: string;
   transactionReference?: string;
   paidAt?: string | null;
+  stockRestoredAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -211,15 +208,7 @@ export interface AIPackage {
   updatedAt?: string;
 }
 
-export type AITransactionStatus =
-  | "pending"
-  | "paid"
-  | "failed"
-  | "cancelled"
-  | "PENDING"
-  | "PAID"
-  | "CANCELLED"
-  | "FAILED";
+export type AITransactionStatus = "PENDING" | "PAID" | "CANCELLED" | "FAILED";
 
 export interface AITransaction {
   _id: string;
@@ -228,6 +217,7 @@ export interface AITransaction {
   amount: number;
   credits: number;
   provider: string;
+  payment?: string | Payment | null;
   orderCode?: number;
   paymentLinkId?: string;
   checkoutUrl?: string;
@@ -235,6 +225,7 @@ export interface AITransaction {
   transactionNo?: string;
   transactionReference?: string;
   paidAt?: string | null;
+  creditsGrantedAt?: string | null;
   expiresAt?: string | null;
   createdAt?: string;
   updatedAt?: string;

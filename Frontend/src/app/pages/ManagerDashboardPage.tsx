@@ -100,14 +100,11 @@ const orderStatuses: Order["status"][] = [
 const orderPaymentStatuses: Order["paymentStatus"][] = ["unpaid", "pending", "paid", "failed", "refunded"];
 
 const paymentStatuses: PaymentStatus[] = [
-  "pending",
-  "paid",
-  "failed",
-  "refunded",
   "PENDING",
   "PAID",
   "CANCELLED",
   "FAILED",
+  "REFUNDED",
 ];
 
 const shippingStatuses: ShippingStatus[] = [
@@ -253,7 +250,7 @@ export function ManagerDashboardPage() {
       activeShipments: shipments.filter((item) => !isFinalShippingStatus(item.shippingStatus)).length,
       lowStock: products.filter((item) => (item.stock || 0) <= 5).length,
       revenue: revenueReport?.summary.totalRevenue ?? payments
-        .filter((item) => ["paid", "PAID"].includes(item.status))
+        .filter((item) => item.status === "PAID")
         .reduce((total, item) => total + item.amount, 0),
     }),
     [orders, payments, products, revenueReport, shipments, users],
@@ -278,9 +275,10 @@ export function ManagerDashboardPage() {
   const filteredPayments = payments.filter((item) => {
     const paymentUser = typeof item.user === "object" ? item.user : null;
     const order = typeof item.order === "object" ? item.order : null;
+    const aiTransaction = typeof item.aiTransaction === "object" ? item.aiTransaction : null;
     return (
       !keyword ||
-      [item._id, item.provider, item.status, item.transactionNo, item.transactionReference, item.orderCode, paymentUser?.email, paymentUser?.username, order?._id].some((value) =>
+      [item._id, item.targetType, item.provider, item.status, item.transactionNo, item.transactionReference, item.orderCode, paymentUser?.email, paymentUser?.username, order?._id, aiTransaction?._id].some((value) =>
         String(value || "").toLowerCase().includes(keyword),
       )
     );
@@ -578,7 +576,7 @@ export function ManagerDashboardPage() {
                       <TableHead>Nhà cung cấp</TableHead>
                       <TableHead>Số tiền</TableHead>
                       <TableHead>Trạng thái</TableHead>
-                      <TableHead>Đơn hàng</TableHead>
+                      <TableHead>Đối tượng</TableHead>
                       <TableHead>Ngày tạo</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -586,6 +584,7 @@ export function ManagerDashboardPage() {
                     {loading ? <EmptyRow colSpan={7} /> : filteredPayments.map((item) => {
                       const paymentUser = typeof item.user === "object" ? item.user : null;
                       const order = typeof item.order === "object" ? item.order : null;
+                      const aiTransaction = typeof item.aiTransaction === "object" ? item.aiTransaction : null;
                       return (
                         <TableRow key={item._id}>
                           <TableCell className="font-mono text-xs">#{item._id.slice(-8).toUpperCase()}</TableCell>
@@ -605,7 +604,15 @@ export function ManagerDashboardPage() {
                               {paymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
                             </select>
                           </TableCell>
-                          <TableCell className="font-mono text-xs">{order?._id ? `#${order._id.slice(-8).toUpperCase()}` : "--"}</TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {item.targetType === "AI_PACKAGE"
+                              ? aiTransaction?._id
+                                ? `AI #${aiTransaction._id.slice(-8).toUpperCase()}`
+                                : "AI package"
+                              : order?._id
+                                ? `#${order._id.slice(-8).toUpperCase()}`
+                                : "--"}
+                          </TableCell>
                           <TableCell>{dateTime(item.createdAt)}</TableCell>
                         </TableRow>
                       );

@@ -1,90 +1,95 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { Link, useSearchParams } from "react-router";
-import { CheckCircle, Clock, Coins, Home, PackageCheck, RefreshCcw, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Coins,
+  Home,
+  PackageCheck,
+  RefreshCcw,
+  XCircle,
+} from "lucide-react";
 import { Button } from "../components/ui/button";
-import { aiPackageApi, getErrorMessage } from "../lib/api";
-import type { AITransaction } from "../types";
+import { usePaymentStatusPolling } from "../hooks/usePaymentStatusPolling";
+import {
+  aiPackageApi,
+  getErrorMessage,
+  type AIPackagePaymentStatusResponse,
+} from "../lib/api";
+import { getAIPaymentContext } from "../lib/payment-storage";
 
 type AIPaymentResultMode = "return" | "cancel";
+
+const terminalStatuses = new Set(["PAID", "CANCELLED", "FAILED", "REFUNDED"]);
+const isTerminalPayment = (payment: AIPackagePaymentStatusResponse) =>
+  terminalStatuses.has(payment.paymentStatus);
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
-const packageNameOf = (transaction?: AITransaction | null) => {
-  if (transaction && typeof transaction.package === "object" && transaction.package !== null) {
-    return transaction.package.name;
-  }
-
-  return "Gói AI";
-};
-
 export function AIPaymentResultPage({ mode }: { mode: AIPaymentResultMode }) {
   const [searchParams] = useSearchParams();
   const orderCode = searchParams.get("orderCode") || searchParams.get("ordercode");
-  const [transaction, setTransaction] = useState<AITransaction | null>(null);
-  const [balance, setBalance] = useState<number | null>(null);
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(Boolean(orderCode));
+  const paymentContext = useMemo(() => getAIPaymentContext(orderCode), [orderCode]);
 
-  const loadResult = async () => {
-    if (!orderCode) {
-      setError("Không tìm thấy mã giao dịch PayOS.");
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const [transactionsResponse, balanceResponse] = await Promise.all([
-        aiPackageApi.getMyTransactions(),
-        aiPackageApi.getMyBalance(),
-      ]);
-      const matchedTransaction =
-        transactionsResponse.transactions.find((item) => String(item.orderCode) === String(orderCode)) || null;
-
-      setTransaction(matchedTransaction);
-      setBalance(balanceResponse.balance);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadResult();
+  const loadPaymentStatus = useCallback(() => {
+    if (!orderCode) return Promise.reject(new Error("Không tìm thấy mã giao dịch PayOS."));
+    return aiPackageApi.getPaymentStatus(orderCode);
   }, [orderCode]);
 
-  const isPaid = transaction?.status === "PAID" || transaction?.status === "paid";
-  const isCancelled = mode === "cancel" || transaction?.status === "CANCELLED" || transaction?.status === "cancelled";
-  const title = useMemo(() => {
-    if (isLoading) {
-      return "Đang kiểm tra thanh toán";
-    }
+  const {
+    data: payment,
+    error,
+    hasTimedOut,
+    isChecking,
+    refresh,
+  } = usePaymentStatusPolling({
+    enabled: Boolean(orderCode),
+    load: loadPaymentStatus,
+    isTerminal: isTerminalPayment,
+  });
 
-    if (isPaid) {
-      return "Gói AI đã được kích hoạt";
-    }
+  const status = payment?.paymentStatus;
+  const isPaid = status === "PAID";
+  const isCancelled = status === "CANCELLED";
+  const isFailed = status === "FAILED" || status === "REFUNDED";
+  const isInitialLoading = isChecking && !payment;
+  const displayError = !orderCode
+    ? "Không tìm thấy mã giao dịch PayOS."
+    : error
+      ? getErrorMessage(error)
+      : "";
 
-    if (isCancelled) {
-      return "Thanh toán gói AI đã hủy";
-    }
+  const title = isInitialLoading
+    ? "Đang kiểm tra thanh toán"
+    : isPaid
+      ? "Gói AI đã được kích hoạt"
+      : isCancelled
+        ? "Thanh toán gói AI đã hủy"
+        : isFailed
+          ? "Thanh toán gói AI thất bại"
+          : hasTimedOut
+            ? "Chưa nhận được xác nhận"
+            : "Thanh toán đang chờ xác nhận";
 
-    return "Thanh toán đang chờ xác nhận";
-  }, [isCancelled, isLoading, isPaid]);
-
+  const pendingDescription = mode === "cancel"
+    ? "Hệ thống đang xác nhận trạng thái hủy trực tiếp với PayOS."
+    : "Hệ thống đang đối soát với PayOS. Bạn có thể giữ nguyên trang này trong giây lát.";
   const description = isPaid
-    ? "Credit đã được cộng vào tài khoản của bạn sau khi PayOS xác nhận giao dịch."
+    ? "Credit đã được cộng đúng một lần sau khi backend xác nhận giao dịch với PayOS."
     : isCancelled
-      ? "Bạn đã hủy thanh toán PayOS. Gói AI chưa được cộng credit."
-      : "Nếu bạn đã chuyển khoản, hệ thống sẽ cập nhật credit khi webhook PayOS hoàn tất.";
+      ? "Giao dịch đã được PayOS xác nhận hủy và tài khoản chưa được cộng credit."
+      : isFailed
+        ? "Giao dịch không hoàn tất nên tài khoản chưa được cộng credit."
+        : hasTimedOut
+          ? "PayOS chưa trả trạng thái cuối cùng. Bạn có thể bấm kiểm tra lại mà không tạo giao dịch mới."
+          : pendingDescription;
 
-  const Icon = isPaid ? CheckCircle : isCancelled ? XCircle : Clock;
+  const Icon = isPaid ? CheckCircle : isCancelled || isFailed ? XCircle : Clock;
   const iconClass = isPaid
     ? "bg-emerald-100 text-emerald-600"
-    : isCancelled
+    : isCancelled || isFailed
       ? "bg-red-100 text-red-600"
       : "bg-amber-100 text-amber-600";
 
@@ -96,37 +101,45 @@ export function AIPaymentResultPage({ mode }: { mode: AIPaymentResultMode }) {
         </div>
 
         <h1 className="mb-2 text-2xl font-bold text-gray-950">{title}</h1>
-        <p className="mb-8 text-gray-600">{isLoading ? "Vui lòng chờ trong giây lát." : description}</p>
+        <p className="mb-8 text-gray-600">{isInitialLoading ? "Vui lòng chờ trong giây lát." : description}</p>
 
         <div className="mb-8 rounded-lg bg-gray-50 p-5 text-left">
           <div className="space-y-3">
             <div className="flex justify-between gap-4">
               <span className="text-sm text-gray-500">Mã PayOS</span>
-              <span className="text-sm font-semibold text-gray-900">{orderCode || "--"}</span>
+              <span className="break-all text-right text-sm font-semibold text-gray-900">{orderCode || "--"}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-sm text-gray-500">Trạng thái</span>
+              <span className="text-sm font-semibold text-gray-900">{status || (isChecking ? "PENDING" : "--")}</span>
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-sm text-gray-500">Gói</span>
-              <span className="text-sm font-semibold text-gray-900">{transaction ? packageNameOf(transaction) : "--"}</span>
+              <span className="text-sm font-semibold text-gray-900">{paymentContext?.packageName || "Gói AI"}</span>
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-sm text-gray-500">Credit</span>
-              <span className="text-sm font-semibold text-gray-900">{transaction?.credits ?? "--"}</span>
+              <span className="text-sm font-semibold text-gray-900">{payment?.credits ?? "--"}</span>
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-sm text-gray-500">Số tiền</span>
               <span className="text-sm font-semibold text-gray-900">
-                {transaction ? formatCurrency(transaction.amount) : "--"}
+                {payment || paymentContext
+                  ? formatCurrency(payment?.amount ?? paymentContext?.amount ?? 0)
+                  : "--"}
               </span>
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-sm text-gray-500">Số dư hiện tại</span>
-              <span className="text-sm font-semibold text-gray-900">{balance ?? "--"}</span>
+              <span className="text-sm font-semibold text-gray-900">{payment?.balance ?? "--"}</span>
             </div>
           </div>
 
-          {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-          {!error && !isLoading && !transaction && (
-            <p className="mt-4 text-sm text-amber-700">Chưa tìm thấy giao dịch trong lịch sử tài khoản.</p>
+          {(displayError || payment?.reconciliationWarning || hasTimedOut) && (
+            <div className="mt-4 flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{displayError || payment?.reconciliationWarning || "Quá trình xác nhận đang lâu hơn dự kiến."}</span>
+            </div>
           )}
         </div>
 
@@ -143,9 +156,14 @@ export function AIPaymentResultPage({ mode }: { mode: AIPaymentResultMode }) {
               Tài khoản
             </Button>
           </Link>
-          <Button variant="outline" onClick={loadResult} disabled={isLoading} className="sm:col-span-2">
-            <RefreshCcw className="h-4 w-4" />
-            Kiểm tra lại
+          <Button
+            variant="outline"
+            onClick={refresh}
+            disabled={isChecking || !orderCode}
+            className="sm:col-span-2"
+          >
+            <RefreshCcw className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`} />
+            {isChecking ? "Đang đối soát" : "Kiểm tra lại"}
           </Button>
           <Link to="/" className="sm:col-span-2">
             <Button variant="ghost" className="w-full">

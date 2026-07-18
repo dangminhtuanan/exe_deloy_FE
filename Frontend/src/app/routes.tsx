@@ -45,24 +45,8 @@ export const router = createBrowserRouter([
         Component: OrderSuccessPage,
       },
       {
-        path: 'payment/return',
-        Component: () => <PaymentResultPage mode="return" />,
-      },
-      {
-        path: 'payment/cancel',
-        Component: () => <PaymentResultPage mode="cancel" />,
-      },
-      {
         path: 'ai-packages',
         Component: AIPackagesPage,
-      },
-      {
-        path: 'ai/payment-result',
-        Component: () => <AIPaymentResultPage mode="return" />,
-      },
-      {
-        path: 'ai/cancel',
-        Component: () => <AIPaymentResultPage mode="cancel" />,
       },
       {
         Component: RequireAuth,
@@ -70,6 +54,22 @@ export const router = createBrowserRouter([
           {
             path: 'profile',
             Component: ProfilePage,
+          },
+          {
+            path: 'payment/return',
+            Component: () => <PaymentResultPage mode="return" />,
+          },
+          {
+            path: 'payment/cancel',
+            Component: () => <PaymentResultPage mode="cancel" />,
+          },
+          {
+            path: 'ai/payment-result',
+            Component: () => <AIPaymentResultPage mode="return" />,
+          },
+          {
+            path: 'ai/cancel',
+            Component: () => <AIPaymentResultPage mode="cancel" />,
           },
         ],
       },

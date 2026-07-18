@@ -400,12 +400,15 @@ interface PayOSCheckoutResponse extends MessageResponse {
   orderId: string;
 }
 
-interface PaymentStatusResponse extends MessageResponse {
+export interface PaymentStatusResponse extends MessageResponse {
   orderCode: number;
-  paymentStatus: string;
+  paymentId: string;
+  paymentStatus: PaymentStatus;
   orderStatus?: string;
   amount: number;
   orderId?: string;
+  paidAt?: string | null;
+  reconciliationWarning?: string;
 }
 
 interface PaymentsResponse extends MessageResponse {
@@ -484,11 +487,24 @@ interface AITransactionsResponse extends MessageResponse {
 interface AIPurchaseResponse extends MessageResponse {
   transaction: {
     id: string;
+    paymentId: string;
     orderCode: number;
     checkoutUrl: string;
     amount: number;
     packageName: string;
   };
+}
+
+export interface AIPackagePaymentStatusResponse extends MessageResponse {
+  orderCode: number;
+  paymentId: string;
+  transactionId?: string | null;
+  paymentStatus: PaymentStatus;
+  amount: number;
+  credits: number;
+  balance: number;
+  paidAt?: string | null;
+  reconciliationWarning?: string;
 }
 
 interface AITransactionResponse extends MessageResponse {
@@ -646,6 +662,7 @@ interface ChatPayload {
 interface TryOnPayload {
   modelImageUrl: string;
   clothingImageUrl?: string;
+  lowerClothingImageUrl?: string;
   productId?: string;
   clothType?: "upper" | "lower" | "full_set" | "combo";
   hdMode?: boolean;
@@ -1044,7 +1061,9 @@ export const ordersApi = {
     });
   },
   getPaymentStatus(orderCode: number | string) {
-    return request<PaymentStatusResponse>(`/orders/payment-status/${orderCode}`);
+    return request<PaymentStatusResponse>(`/orders/payment-status/${orderCode}`, {
+      auth: true,
+    });
   },
   getMy() {
     return request<OrdersResponse>("/orders/my", {
@@ -1124,6 +1143,11 @@ export const aiPackageApi = {
       method: "POST",
       auth: true,
       body: { packageId },
+    });
+  },
+  getPaymentStatus(orderCode: number | string) {
+    return request<AIPackagePaymentStatusResponse>(`/ai-packages/payment-status/${orderCode}`, {
+      auth: true,
     });
   },
   getTransaction(transactionId: string) {
@@ -1243,8 +1267,9 @@ export const aiApi = {
     });
   },
   createTryOn(payload: TryOnPayload) {
-    return optionalAuthRequest<TryOnResponse>("/ai/try-on", {
+    return request<TryOnResponse>("/ai/try-on", {
       method: "POST",
+      auth: true,
       body: payload,
     });
   },
@@ -1262,8 +1287,9 @@ export const aiApi = {
     } satisfies NormalizedAIOutfitHistoryResponse;
   },
   async createMixMatchTryOn(payload: MixMatchTryOnPayload) {
-    const response = await optionalAuthRequest<MixMatchTryOnResponse>("/ai/mix-match/try-on", {
+    const response = await request<MixMatchTryOnResponse>("/ai/mix-match/try-on", {
       method: "POST",
+      auth: true,
       body: payload,
     });
 
