@@ -12,6 +12,7 @@ import {
   RefreshCcw,
   Search,
   Shield,
+  Sparkles,
   Trash2,
   Truck,
   UserPlus,
@@ -64,6 +65,7 @@ import {
 import { Textarea } from "../components/ui/textarea";
 import { useAuth } from "../contexts/AuthContext";
 import {
+  aiPackageApi,
   categoriesApi,
   getErrorMessage,
   ordersApi,
@@ -74,9 +76,9 @@ import {
   usersApi,
 } from "../lib/api";
 import type { Category, Order, Payment, PaymentStatus, Product, ShippingRecord, ShippingStatus, UserProfile, UserRole } from "../types";
-import type { RevenueReportResponse } from "../lib/api";
+import type { RevenueReportResponse, VisitorReportResponse } from "../lib/api";
 
-type AdminSection = "overview" | "reports" | "users" | "orders" | "payments" | "shipping" | "products";
+type AdminSection = "overview" | "reports" | "users" | "orders" | "payments" | "shipping" | "products" | "packages";
 type AdminOrder = Order & { user?: Pick<UserProfile, "_id" | "username" | "email" | "phone"> };
 
 interface UserFormData {
@@ -104,6 +106,18 @@ interface ProductFormData {
   isFeatured: boolean;
 }
 
+interface AIPackageFormData {
+  name: string;
+  description: string;
+  price: string;
+  credits: string;
+  features: string;
+  duration: AIPackage["duration"];
+  isTrial: boolean;
+  active: boolean;
+  displayOrder: string;
+}
+
 const emptyUserForm: UserFormData = {
   username: "",
   email: "",
@@ -127,6 +141,18 @@ const emptyProductForm: ProductFormData = {
   stock: "",
   images: "",
   isFeatured: false,
+};
+
+const emptyPackageForm: AIPackageFormData = {
+  name: "",
+  description: "",
+  price: "",
+  credits: "",
+  features: "",
+  duration: "one-time",
+  isTrial: false,
+  active: true,
+  displayOrder: "0",
 };
 
 const orderStatuses: Order["status"][] = [
@@ -189,6 +215,7 @@ const sections = [
   { id: "payments", label: "Thanh toán", icon: CreditCard },
   { id: "shipping", label: "Giao hàng", icon: Truck },
   { id: "products", label: "Quản lý sản phẩm", icon: Boxes },
+  { id: "packages", label: "Quản lý gói AI", icon: Sparkles },
 ] satisfies Array<{ id: AdminSection; label: string; icon: typeof LayoutDashboard }>;
 
 function money(value?: number) {
@@ -243,14 +270,18 @@ export function AdminDashboardPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [shippings, setShippings] = useState<ShippingRecord[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [packages, setPackages] = useState<AIPackage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [revenueReport, setRevenueReport] = useState<RevenueReportResponse | null>(null);
+  const [visitorReport, setVisitorReport] = useState<VisitorReportResponse | null>(null);
+  const [visitorError, setVisitorError] = useState("");
 
   const [userSearch, setUserSearch] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
   const [paymentSearch, setPaymentSearch] = useState("");
   const [shippingSearch, setShippingSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const [packageSearch, setPackageSearch] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
   const [shippingStatusFilter, setShippingStatusFilter] = useState("");
@@ -262,7 +293,9 @@ export function AdminDashboardPage() {
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [loadingShippings, setLoadingShippings] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingPackages, setLoadingPackages] = useState(true);
   const [loadingRevenue, setLoadingRevenue] = useState(true);
+  const [loadingVisitors, setLoadingVisitors] = useState(true);
 
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -271,6 +304,9 @@ export function AdminDashboardPage() {
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<ProductFormData>(emptyProductForm);
+  const [isPackageDialogOpen, setIsPackageDialogOpen] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<AIPackage | null>(null);
+  const [packageForm, setPackageForm] = useState<AIPackageFormData>(emptyPackageForm);
   const [submitting, setSubmitting] = useState(false);
 
   const loadUsers = async () => {
@@ -343,6 +379,18 @@ export function AdminDashboardPage() {
     }
   };
 
+  const loadPackages = async () => {
+    setLoadingPackages(true);
+    try {
+      const response = await aiPackageApi.getAll();
+      setPackages(response.packages);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setLoadingPackages(false);
+    }
+  };
+
   const loadRevenueReport = async () => {
     setLoadingRevenue(true);
     try {
@@ -362,6 +410,20 @@ export function AdminDashboardPage() {
     }
   };
 
+  const loadVisitorReport = async () => {
+    setLoadingVisitors(true);
+    setVisitorError("");
+    try {
+      const response = await reportsApi.getVisitors();
+      setVisitorReport(response);
+    } catch (error) {
+      setVisitorReport(null);
+      setVisitorError(getErrorMessage(error));
+    } finally {
+      setLoadingVisitors(false);
+    }
+  };
+
   useEffect(() => {
     void Promise.all([
       loadUsers(),
@@ -369,7 +431,9 @@ export function AdminDashboardPage() {
       loadPayments(),
       loadShippings(),
       loadProducts(),
+      loadPackages(),
       loadRevenueReport(),
+      loadVisitorReport(),
     ]);
   }, []);
 
@@ -448,6 +512,14 @@ export function AdminDashboardPage() {
     const keyword = productSearch.trim().toLowerCase();
     if (!keyword) return true;
     return [item.name, item.category, item.brand, item.gender, item.material]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(keyword));
+  });
+
+  const filteredPackages = packages.filter((item) => {
+    const keyword = packageSearch.trim().toLowerCase();
+    if (!keyword) return true;
+    return [item.name, item.description, item.features.join(" "), item.duration]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(keyword));
   });
@@ -638,6 +710,81 @@ export function AdminDashboardPage() {
     }
   };
 
+  const openCreatePackageDialog = () => {
+    setEditingPackage(null);
+    setPackageForm(emptyPackageForm);
+    setIsPackageDialogOpen(true);
+  };
+
+  const openEditPackageDialog = (selectedPackage: AIPackage) => {
+    setEditingPackage(selectedPackage);
+    setPackageForm({
+      name: selectedPackage.name,
+      description: selectedPackage.description || "",
+      price: String(selectedPackage.price || ""),
+      credits: String(selectedPackage.credits || ""),
+      features: (selectedPackage.features || []).join(", "),
+      duration: selectedPackage.duration || "one-time",
+      isTrial: Boolean(selectedPackage.isTrial),
+      active: Boolean(selectedPackage.active),
+      displayOrder: String(selectedPackage.displayOrder || 0),
+    });
+    setIsPackageDialogOpen(true);
+  };
+
+  const handlePackageSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    const payload = {
+      name: packageForm.name.trim(),
+      description: packageForm.description.trim(),
+      price: Number(packageForm.price || 0),
+      credits: Number(packageForm.credits || 0),
+      features: splitCsv(packageForm.features),
+      duration: packageForm.duration,
+      isTrial: packageForm.isTrial,
+      active: packageForm.active,
+      displayOrder: Number(packageForm.displayOrder || 0),
+    };
+
+    if (!payload.name || !Number.isFinite(payload.price) || !Number.isFinite(payload.credits) || payload.credits <= 0) {
+      toast.error("Vui lòng nhập tên, giá và số credit hợp lệ");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      if (editingPackage?._id) {
+        const response = await aiPackageApi.update(editingPackage._id, payload);
+        setPackages((prev) => prev.map((item) => (item._id === editingPackage._id ? response.package : item)));
+        toast.success("Cập nhật gói AI thành công");
+      } else {
+        const response = await aiPackageApi.create(payload);
+        setPackages((prev) => [response.package, ...prev]);
+        toast.success("Tạo gói AI thành công");
+      }
+
+      setIsPackageDialogOpen(false);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeletePackage = async (selectedPackage: AIPackage) => {
+    if (!selectedPackage._id || !window.confirm(`Bạn có chắc muốn xóa gói "${selectedPackage.name}"?`)) return;
+
+    try {
+      await aiPackageApi.remove(selectedPackage._id);
+      setPackages((prev) => prev.filter((item) => item._id !== selectedPackage._id));
+      toast.success("Đã xóa gói AI");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
       <div className="flex min-h-screen">
@@ -715,7 +862,7 @@ export function AdminDashboardPage() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => void Promise.all([loadUsers(), loadOrders(), loadPayments(), loadShippings(), loadProducts()])}
+                  onClick={() => void Promise.all([loadUsers(), loadOrders(), loadPayments(), loadShippings(), loadProducts(), loadPackages(), loadVisitorReport()])}
                 >
                   <RefreshCcw className="h-4 w-4" />
                   Làm mới tất cả
@@ -729,7 +876,12 @@ export function AdminDashboardPage() {
 
             <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
               <StatCard title="Người dùng" value={5} description="Dữ liệu báo cáo mẫu" icon={Users} />
-              <StatCard title="Người truy cập website" value={56} description="Lượt truy cập gần đây" icon={Eye} />
+              <StatCard
+                title="Đang truy cập website"
+                value={loadingVisitors ? "..." : visitorReport?.realtime.activeUsers ?? 0}
+                description="Người dùng trong 30 phút gần nhất"
+                icon={Eye}
+              />
               <StatCard title="Thanh toán" value={0} description="0 đã thanh toán" icon={CreditCard} />
               <StatCard title="Giao hàng" value={0} description="0 đang xử lý" icon={Truck} />
               <StatCard title="Sản phẩm" value={stats.products} description={`${stats.lowStock} sản phẩm sắp hết`} icon={Boxes} />
@@ -738,6 +890,12 @@ export function AdminDashboardPage() {
 
             {activeSection === "overview" && (
               <div className="grid gap-4">
+                <VisitorAnalyticsPanel
+                  report={visitorReport}
+                  loading={loadingVisitors}
+                  error={visitorError}
+                  onRefresh={() => void loadVisitorReport()}
+                />
                 <LowStockProducts products={products.filter((item) => (item.stock || 0) <= 5).slice(0, 6)} loading={loadingProducts} />
               </div>
             )}
@@ -1130,6 +1288,77 @@ export function AdminDashboardPage() {
                 </CardContent>
               </Card>
             )}
+
+            {activeSection === "packages" && (
+              <Card>
+                <CardHeader className="gap-4">
+                  <Toolbar
+                    title="Quản lý gói AI"
+                    description="Tạo, sửa, bật/tắt và xóa gói AI từ API /ai-packages"
+                    searchValue={packageSearch}
+                    searchPlaceholder="Tìm tên gói, mô tả, feature..."
+                    onSearchChange={setPackageSearch}
+                    onRefresh={() => void loadPackages()}
+                    action={
+                      <Button onClick={openCreatePackageDialog}>
+                        <Sparkles className="h-4 w-4" />
+                        Thêm gói AI
+                      </Button>
+                    }
+                  />
+                </CardHeader>
+                <CardContent className="overflow-x-auto p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tên gói</TableHead>
+                        <TableHead>Giá</TableHead>
+                        <TableHead>Credit</TableHead>
+                        <TableHead>Trạng thái</TableHead>
+                        <TableHead>Thứ tự</TableHead>
+                        <TableHead>Cập nhật</TableHead>
+                        <TableHead className="text-right">Hành động</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loadingPackages ? (
+                        <EmptyRow colSpan={7} text="Đang tải gói AI..." />
+                      ) : filteredPackages.length === 0 ? (
+                        <EmptyRow colSpan={7} text="Không có gói AI phù hợp" />
+                      ) : (
+                        filteredPackages.map((item) => (
+                          <TableRow key={item._id}>
+                            <TableCell>
+                              <div className="font-medium">{item.name}</div>
+                              <div className="text-xs text-slate-500">{item.description || "--"}</div>
+                            </TableCell>
+                            <TableCell>{money(item.price)}</TableCell>
+                            <TableCell>{item.credits}</TableCell>
+                            <TableCell>
+                              <Badge variant={item.active ? "default" : "secondary"}>
+                                {item.active ? "Đang mở bán" : "Tạm ẩn"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{item.displayOrder ?? 0}</TableCell>
+                            <TableCell>{dateTime(item.updatedAt)}</TableCell>
+                            <TableCell>
+                              <div className="flex justify-end gap-2">
+                                <Button size="icon" variant="outline" onClick={() => openEditPackageDialog(item)} title="Sửa gói AI">
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button size="icon" variant="outline" className="text-red-600" onClick={() => void handleDeletePackage(item)} title="Xóa gói AI">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </main>
       </div>
@@ -1153,6 +1382,16 @@ export function AdminDashboardPage() {
         onOpenChange={setIsProductDialogOpen}
         onFormChange={setProductForm}
         onSubmit={handleProductSubmit}
+      />
+
+      <PackageDialog
+        open={isPackageDialogOpen}
+        editingPackage={editingPackage}
+        form={packageForm}
+        submitting={submitting}
+        onOpenChange={setIsPackageDialogOpen}
+        onFormChange={setPackageForm}
+        onSubmit={handlePackageSubmit}
       />
     </div>
   );
@@ -1178,6 +1417,108 @@ function StatCard({
       <CardContent>
         <CardTitle className="text-2xl">{value}</CardTitle>
         <p className="mt-1 text-sm text-slate-500">{description}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function VisitorAnalyticsPanel({
+  report,
+  loading,
+  error,
+  onRefresh,
+}: {
+  report: VisitorReportResponse | null;
+  loading: boolean;
+  error: string;
+  onRefresh: () => void;
+}) {
+  const metrics = [
+    { label: "Đang hoạt động", value: report?.realtime.activeUsers ?? 0, note: "30 phút gần nhất" },
+    { label: "Người dùng hôm nay", value: report?.today.activeUsers ?? 0, note: `${report?.today.newUsers ?? 0} người dùng mới` },
+    { label: "Phiên hôm nay", value: report?.today.sessions ?? 0, note: "Tổng số phiên truy cập" },
+    { label: "Lượt xem hôm nay", value: report?.today.pageViews ?? 0, note: "Tổng lượt xem trang" },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+        <div>
+          <CardTitle>Truy cập website</CardTitle>
+          <CardDescription className="mt-1">
+            Dữ liệu Google Analytics thời gian thực và 7 ngày gần nhất
+          </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
+          <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          Làm mới
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {error ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-semibold">Chưa thể đọc dữ liệu Google Analytics</p>
+            <p className="mt-1">{error}</p>
+            <p className="mt-2 text-amber-800">
+              {error.toLowerCase().includes("không có quyền")
+                ? "Hãy thêm email Service Account vào Property access management với quyền Viewer."
+                : "Cấu hình GA4_PROPERTY_ID, GA4_CLIENT_EMAIL và GA4_PRIVATE_KEY trong .env backend."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {metrics.map((metric) => (
+                <div key={metric.label} className="rounded-md border bg-slate-50 p-4">
+                  <p className="text-sm text-slate-500">{metric.label}</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-950">{loading ? "..." : metric.value}</p>
+                  <p className="mt-1 text-xs text-slate-500">{metric.note}</p>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-slate-950">Trang được xem nhiều nhất</h3>
+                {report?.generatedAt && (
+                  <span className="text-xs text-slate-500">
+                    Cập nhật {new Date(report.generatedAt).toLocaleTimeString("vi-VN")}
+                  </span>
+                )}
+              </div>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Trang</TableHead>
+                      <TableHead>Đường dẫn</TableHead>
+                      <TableHead className="text-right">Lượt xem</TableHead>
+                      <TableHead className="text-right">Người dùng</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {!loading && report?.topPages.length ? (
+                      report.topPages.map((page) => (
+                        <TableRow key={`${page.path}-${page.title}`}>
+                          <TableCell className="font-medium">{page.title}</TableCell>
+                          <TableCell className="text-slate-500">{page.path}</TableCell>
+                          <TableCell className="text-right">{page.pageViews}</TableCell>
+                          <TableCell className="text-right">{page.activeUsers}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="py-8 text-center text-slate-500">
+                          {loading ? "Đang tải dữ liệu Google Analytics..." : "Chưa có dữ liệu truy cập"}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
@@ -1845,6 +2186,75 @@ function ProductDialog({
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={submitting || categories.length === 0}>{submitting ? "Đang lưu..." : "Lưu sản phẩm"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PackageDialog({
+  open,
+  editingPackage,
+  form,
+  submitting,
+  onOpenChange,
+  onFormChange,
+  onSubmit,
+}: {
+  open: boolean;
+  editingPackage: AIPackage | null;
+  form: AIPackageFormData;
+  submitting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onFormChange: (form: AIPackageFormData) => void;
+  onSubmit: (e: React.FormEvent) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[760px]">
+        <DialogHeader>
+          <DialogTitle>{editingPackage ? "Cập nhật gói AI" : "Tạo gói AI mới"}</DialogTitle>
+          <DialogDescription>Thông tin gói sẽ được lưu qua API /ai-packages/packages.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Tên gói" id="package-name" value={form.name} onChange={(value) => onFormChange({ ...form, name: value })} required />
+            <div className="space-y-2">
+              <Label htmlFor="package-duration">Chu kỳ gói</Label>
+              <select
+                id="package-duration"
+                value={form.duration}
+                onChange={(e) => onFormChange({ ...form, duration: e.target.value as AIPackage["duration"] })}
+                className="h-10 w-full rounded-md border bg-white px-3 text-sm"
+              >
+                <option value="one-time">Mua lẻ (không gia hạn)</option>
+                <option value="monthly">Hàng tháng</option>
+                <option value="yearly">Hàng năm</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Field label="Giá (VND)" id="package-price" type="number" value={form.price} onChange={(value) => onFormChange({ ...form, price: value })} required />
+            <Field label="Credit" id="package-credits" type="number" value={form.credits} onChange={(value) => onFormChange({ ...form, credits: value })} required />
+            <Field label="Thứ tự hiển thị" id="package-display-order" type="number" value={form.displayOrder} onChange={(value) => onFormChange({ ...form, displayOrder: value })} />
+          </div>
+          <Field label="Features" id="package-features" value={form.features} onChange={(value) => onFormChange({ ...form, features: value })} placeholder="Try-On, Mix & Match" />
+          <div className="space-y-2">
+            <Label htmlFor="package-description">Mô tả</Label>
+            <Textarea id="package-description" value={form.description} onChange={(e) => onFormChange({ ...form, description: e.target.value })} />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={form.isTrial} onChange={(e) => onFormChange({ ...form, isTrial: e.target.checked })} />
+            Giới hạn ưu đãi dùng thử (1 lần/tài khoản)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={form.active} onChange={(e) => onFormChange({ ...form, active: e.target.checked })} />
+            Gói đang mở bán
+          </label>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "Đang lưu..." : "Lưu gói AI"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

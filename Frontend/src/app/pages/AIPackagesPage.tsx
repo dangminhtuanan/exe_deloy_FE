@@ -79,6 +79,19 @@ export function AIPackagesPage() {
     [transactions],
   );
 
+  const trialPurchaseState = useMemo(() => {
+    const trialPackageIds = new Set(packages.filter((item) => item.isTrial).map((item) => item._id));
+    const trialTransaction = transactions.find((transaction) => {
+      const packageId = typeof transaction.package === "object" && transaction.package !== null
+        ? transaction.package._id
+        : transaction.package;
+      const status = transaction.status.toUpperCase();
+      return (transaction.isTrial || trialPackageIds.has(packageId)) && (status === "PAID" || status === "PENDING");
+    });
+
+    return trialTransaction?.status.toUpperCase() as "PAID" | "PENDING" | undefined;
+  }, [packages, transactions]);
+
   const loadData = async () => {
     try {
       const packagesResponse = await aiPackageApi.getPackages();
@@ -265,11 +278,22 @@ export function AIPackagesPage() {
                           {item.description || "Gói credit dùng cho các tính năng AI của OUTFIO."}
                         </CardDescription>
                       </div>
-                      <Badge variant="secondary">{item.duration === "one-time" ? "Một lần" : item.duration}</Badge>
+                      <Badge variant="secondary">
+                        {item.duration === "one-time"
+                          ? "Mua lẻ"
+                          : item.duration === "monthly"
+                            ? "Hàng tháng"
+                            : "Hàng năm"}
+                      </Badge>
                     </div>
                     <div>
                       <p className="text-3xl font-bold text-gray-950">{formatCurrency(item.price)}</p>
                       <p className="mt-1 text-sm text-pink-600">{item.credits} AI credits</p>
+                      {item.isTrial && (
+                        <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+                          Gói dùng thử — mỗi tài khoản chỉ được mua 1 lần.
+                        </p>
+                      )}
                     </div>
                   </CardHeader>
 
@@ -288,14 +312,18 @@ export function AIPackagesPage() {
                     <Button
                       className="w-full bg-gray-950 text-white hover:bg-gray-800"
                       onClick={() => handlePurchase(item._id)}
-                      disabled={purchasingId === item._id}
+                      disabled={purchasingId === item._id || (item.isTrial && Boolean(trialPurchaseState))}
                     >
                       {purchasingId === item._id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <CreditCard className="h-4 w-4" />
                       )}
-                      Mua bằng PayOS
+                      {item.isTrial && trialPurchaseState === "PAID"
+                        ? "Đã dùng gói thử"
+                        : item.isTrial && trialPurchaseState === "PENDING"
+                          ? "Đang chờ thanh toán"
+                          : "Mua bằng PayOS"}
                     </Button>
                   </CardContent>
                 </Card>

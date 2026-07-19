@@ -202,6 +202,7 @@ export interface AIPackage {
   credits: number;
   features: string[];
   duration: "one-time" | "monthly" | "yearly";
+  isTrial: boolean;
   active: boolean;
   displayOrder?: number;
   createdAt?: string;
@@ -216,6 +217,7 @@ export interface AITransaction {
   package: string | Pick<AIPackage, "_id" | "name" | "credits" | "price" | "features">;
   amount: number;
   credits: number;
+  isTrial?: boolean;
   provider: string;
   payment?: string | Payment | null;
   orderCode?: number;

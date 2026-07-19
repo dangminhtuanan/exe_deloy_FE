@@ -12,7 +12,7 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <Header cartCount={totalItems} onCartClick={() => setIsCartOpen(true)} />
+      <Header cartCount={totalItems} />
       <main className="flex-1">
         <Outlet />
       </main>

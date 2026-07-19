@@ -471,6 +471,26 @@ export interface RevenueReportResponse extends MessageResponse {
   }>;
 }
 
+export interface VisitorReportResponse extends MessageResponse {
+  propertyId: string;
+  generatedAt: string;
+  realtime: {
+    activeUsers: number;
+  };
+  today: {
+    activeUsers: number;
+    newUsers: number;
+    sessions: number;
+    pageViews: number;
+  };
+  topPages: Array<{
+    path: string;
+    title: string;
+    pageViews: number;
+    activeUsers: number;
+  }>;
+}
+
 interface AIPackagesResponse extends MessageResponse {
   packages: AIPackage[];
 }
@@ -1122,11 +1142,41 @@ export const reportsApi = {
       params,
     });
   },
+  getVisitors() {
+    return request<VisitorReportResponse>("/reports/visitors", {
+      auth: true,
+    });
+  },
 };
 
 export const aiPackageApi = {
   getPackages() {
     return request<AIPackagesResponse>("/ai-packages/packages");
+  },
+  getAll() {
+    return request<AIPackagesResponse>("/ai-packages/packages/all", {
+      auth: true,
+    });
+  },
+  create(payload: { name: string; description?: string; price: number; credits: number; features?: string[]; duration?: AIPackage["duration"]; isTrial?: boolean; active?: boolean; displayOrder?: number }) {
+    return request<{ message: string; package: AIPackage }>('/ai-packages/packages', {
+      method: 'POST',
+      auth: true,
+      body: payload,
+    });
+  },
+  update(id: string, payload: Partial<AIPackage>) {
+    return request<{ message: string; package: AIPackage }>(`/ai-packages/packages/${id}`, {
+      method: 'PUT',
+      auth: true,
+      body: payload,
+    });
+  },
+  remove(id: string) {
+    return request<MessageResponse>(`/ai-packages/packages/${id}`, {
+      method: 'DELETE',
+      auth: true,
+    });
   },
   getMyBalance() {
     return request<AICreditsBalanceResponse>("/ai-packages/my/balance", {
