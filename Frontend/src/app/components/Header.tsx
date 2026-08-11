@@ -21,8 +21,6 @@ export function Header({ cartCount }: HeaderProps) {
     ? "/login"
     : user?.role === "admin"
       ? "/admin"
-      : user?.role === "manager"
-        ? "/manager"
       : user?.role === "shipper"
         ? "/shipper"
         : "/profile";

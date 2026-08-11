@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Hero } from "../components/Hero";
 import { ProductCard } from "../components/ProductCard";
-import type { Category, Product } from "../types";
+import type { Category, Pagination, Product } from "../types";
 import { useCart } from "../contexts/CartContext";
 import { toast } from "sonner";
 import { categoriesApi, getErrorMessage, productsApi } from "../lib/api";
@@ -11,6 +11,8 @@ export function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   useEffect(() => {
@@ -34,17 +36,20 @@ export function HomePage() {
       try {
         const response = await productsApi.getAll({
           category: selectedCategory || undefined,
-          limit: 100,
+          page,
+          limit: 20,
           sort: "newest",
           inStock: true,
         });
 
         if (!cancelled) {
           setProducts(response.products);
+          setPagination(response.pagination ?? null);
         }
       } catch (error) {
         if (!cancelled) {
           setProducts([]);
+          setPagination(null);
           toast.error(getErrorMessage(error));
         }
       } finally {
@@ -59,7 +64,12 @@ export function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedCategory]);
+  }, [page, selectedCategory]);
+
+  const selectCategory = (category: string) => {
+    setSelectedCategory(category);
+    setPage(1);
+  };
 
   const handleAddToCart = async (product: Product) => {
     try {
@@ -78,7 +88,7 @@ export function HomePage() {
         <div className="container mx-auto max-w-6xl px-4">
           <div className="flex gap-4 overflow-x-auto pb-2">
             <button
-              onClick={() => setSelectedCategory("")}
+              onClick={() => selectCategory("")}
               className={`px-4 py-2 rounded-full border transition-colors whitespace-nowrap text-sm ${
                 selectedCategory === ""
                   ? "bg-black text-white border-black"
@@ -92,7 +102,7 @@ export function HomePage() {
               return (
                 <button
                   key={category._id}
-                  onClick={() => setSelectedCategory(value)}
+                  onClick={() => selectCategory(value)}
                   className={`px-4 py-2 rounded-full border transition-colors whitespace-nowrap text-sm ${
                     selectedCategory === value
                       ? "bg-black text-white border-black"
@@ -133,6 +143,31 @@ export function HomePage() {
                   onAddToCart={handleAddToCart}
                 />
               ))}
+            </div>
+          )}
+          {!loadingProducts && pagination && pagination.totalPages > 1 && (
+            <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t pt-6 sm:flex-row">
+              <p className="text-sm text-gray-500">
+                Trang {pagination.page} / {pagination.totalPages} · Tổng {pagination.total} sản phẩm
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={page <= 1}
+                  className="rounded border px-4 py-2 text-sm font-medium transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Trước
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}
+                  disabled={page >= pagination.totalPages}
+                  className="rounded border px-4 py-2 text-sm font-medium transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Tiếp
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { AICreditManagementContent } from "./AICreditManagementPage";
+import { AdminCategoryManagementContent } from "./AdminCategoryManagementContent";
+import { AdminAILogsContent } from "./AdminAILogsContent";
+import { AdminReviewManagementContent } from "./AdminReviewManagementContent";
+import { AdminShippingAdvancedContent } from "./AdminShippingAdvancedContent";
 import {
   BadgeCheck,
   Boxes,
@@ -79,7 +84,7 @@ import {
 import type { AccessLogItem, Category, Order, Payment, PaymentStatus, Pagination, Product, ShippingRecord, ShippingStatus, UserProfile, UserRole, AIPackage } from "../types";
 import type { RevenueReportResponse } from "../lib/api";
 
-type AdminSection = "overview" | "reports" | "users" | "orders" | "payments" | "shipping" | "products" | "packages" | "accessLogs";
+type AdminSection = "overview" | "reports" | "users" | "orders" | "payments" | "shipping" | "products" | "categories" | "aiLogs" | "reviews" | "packages" | "credits" | "accessLogs";
 type AdminOrder = Order & { user?: Pick<UserProfile, "_id" | "username" | "email" | "phone"> };
 
 interface UserFormData {
@@ -166,10 +171,6 @@ const orderStatuses: Order["status"][] = [
   "refunded",
   "delivery_failed",
   "returned",
-  "PENDING_PAYMENT",
-  "PAID",
-  "CANCELLED",
-  "FAILED",
 ];
 
 const paymentStatuses: Order["paymentStatus"][] = [
@@ -199,6 +200,13 @@ const shippingStatuses: ShippingStatus[] = [
   "cancelled",
 ];
 
+const orderStatusLabels: Record<Order["status"], string> = {
+  pending: "Chờ xác nhận", confirmed: "Đã xác nhận", packing: "Đang đóng gói", shipping: "Đang giao", completed: "Hoàn thành", cancelled: "Đã hủy", refunded: "Đã hoàn tiền", delivery_failed: "Giao thất bại", returned: "Hoàn hàng",
+};
+const orderPaymentStatusLabels: Record<Order["paymentStatus"], string> = { unpaid: "Chưa thanh toán", pending: "Đang chờ", paid: "Đã thanh toán", failed: "Thất bại", refunded: "Đã hoàn tiền" };
+const paymentStatusLabels: Record<PaymentStatus, string> = { PENDING: "Đang chờ", PAID: "Đã thanh toán", CANCELLED: "Đã hủy", FAILED: "Thất bại", REFUNDED: "Đã hoàn tiền" };
+const shippingStatusLabels: Record<ShippingStatus, string> = { pending: "Chờ lấy hàng", picked_up: "Đã lấy hàng", in_transit: "Đang vận chuyển", out_for_delivery: "Đang giao", delivered: "Đã giao", failed: "Giao thất bại", returned: "Hoàn hàng", cancelled: "Đã hủy" };
+
 const revenueRangeOptions = [
   { value: "7", label: "7 ngày" },
   { value: "30", label: "30 ngày" },
@@ -214,10 +222,14 @@ const sections = [
   { id: "accessLogs", label: "Lịch sử truy cập", icon: Shield },
   { id: "users", label: "Quản lý người dùng", icon: Users },
   { id: "orders", label: "Quản lý đơn hàng", icon: ClipboardList },
-  { id: "payments", label: "Thanh toán", icon: CreditCard },
-  { id: "shipping", label: "Giao hàng", icon: Truck },
+  { id: "payments", label: "Quản lý Thanh toán", icon: CreditCard },
+  { id: "shipping", label: "Quản lý Giao hàng", icon: Truck },
   { id: "products", label: "Quản lý sản phẩm", icon: Boxes },
   { id: "packages", label: "Quản lý gói AI", icon: Sparkles },
+  { id: "credits", label: "Quản lý Credit AI", icon: CreditCard },
+  { id: "categories", label: "Quản lý danh mục", icon: Boxes },
+  { id: "aiLogs", label: "Nhật ký AI", icon: Sparkles },
+  { id: "reviews", label: "Quản lý review", icon: BadgeCheck },
 ] satisfies Array<{ id: AdminSection; label: string; icon: typeof LayoutDashboard }>;
 
 function money(value?: number) {
@@ -359,6 +371,8 @@ export function AdminDashboardPage() {
   const [editingPackage, setEditingPackage] = useState<AIPackage | null>(null);
   const [packageForm, setPackageForm] = useState<AIPackageFormData>(emptyPackageForm);
   const [submitting, setSubmitting] = useState(false);
+  const [isCreateShippingOpen, setIsCreateShippingOpen] = useState(false);
+  const [shippingOrderId, setShippingOrderId] = useState("");
 
   const loadUsers = async (page = usersPage) => {
     setLoadingUsers(true);
@@ -542,7 +556,7 @@ export function AdminDashboardPage() {
       users: usersPagination?.total ?? users.length,
       admins: users.filter((item) => item.role === "admin").length,
       orders: ordersPagination?.total ?? orders.length,
-      pendingOrders: orders.filter((item) => ["pending", "PENDING_PAYMENT"].includes(item.status)).length,
+      pendingOrders: orders.filter((item) => item.status === "pending").length,
       payments: paymentsPagination?.total ?? payments.length,
       paidPayments: payments.filter((item) => item.status === "PAID").length,
       shippings: shippingsPagination?.total ?? shippings.length,
@@ -608,6 +622,10 @@ export function AdminDashboardPage() {
     logout();
     toast.success("Đã đăng xuất");
     navigate("/login", { replace: true });
+  };
+
+  const handleSectionChange = (section: AdminSection) => {
+    setActiveSection(section);
   };
 
   const openCreateUserDialog = () => {
@@ -711,6 +729,18 @@ export function AdminDashboardPage() {
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
+  };
+
+  const handleCreateShipping = async () => {
+    if (!shippingOrderId) { toast.error("Hãy chọn đơn hàng"); return; }
+    setSubmitting(true);
+    try {
+      await shippingApi.create({ orderId: shippingOrderId });
+      toast.success("Đã tạo giao hàng");
+      setIsCreateShippingOpen(false); setShippingOrderId("");
+      await Promise.all([loadShippings(1), loadOrders(1)]);
+    } catch (error) { toast.error(getErrorMessage(error)); }
+    finally { setSubmitting(false); }
   };
 
   const openCreateProductDialog = () => {
@@ -882,7 +912,7 @@ export function AdminDashboardPage() {
                 <button
                   key={section.id}
                   type="button"
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => handleSectionChange(section.id)}
                   className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium transition ${
                     active ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
                   }`}
@@ -922,7 +952,7 @@ export function AdminDashboardPage() {
                   key={section.id}
                   variant={activeSection === section.id ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => handleSectionChange(section.id)}
                 >
                   <section.icon className="h-4 w-4" />
                   {section.label}
@@ -1062,20 +1092,21 @@ export function AdminDashboardPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tên</TableHead>
+                        <TableHead>Username</TableHead>
                         <TableHead>Email</TableHead>
-                        <TableHead>Số điện thoại</TableHead>
-                        <TableHead>Vai trò</TableHead>
-                        <TableHead>Địa chỉ</TableHead>
-                        <TableHead>Cập nhật</TableHead>
-                        <TableHead className="text-right">Hành động</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Address</TableHead>
+                        <TableHead>Updated</TableHead>
+                        <TableHead>Credit AI</TableHead>
+                        <TableHead>Status / created</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loadingUsers ? (
-                        <EmptyRow colSpan={7} text="Đang tải người dùng..." />
+                        <EmptyRow colSpan={9} text="Đang tải người dùng..." />
                       ) : filteredUsers.length === 0 ? (
-                        <EmptyRow colSpan={7} text="Không có người dùng phù hợp" />
+                        <EmptyRow colSpan={9} text="Không có người dùng phù hợp" />
                       ) : (
                         filteredUsers.map((item) => (
                           <TableRow key={item._id}>
@@ -1085,6 +1116,19 @@ export function AdminDashboardPage() {
                             <TableCell><Badge variant={item.role === "admin" ? "default" : "secondary"}>{item.role}</Badge></TableCell>
                             <TableCell className="max-w-56 truncate">{item.address || "--"}</TableCell>
                             <TableCell>{dateTime(item.updatedAt)}</TableCell>
+                            <TableCell>
+                              <div className="space-y-1 text-xs">
+                                <p>Tổng: <span className="font-semibold">{item.aiCredits || 0}</span></p>
+                                <p>Miễn phí: {item.monthlyAiCredits || 0}</p>
+                                <p>Đã mua: {item.paidAiCredits || 0}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={item.isActive ? "default" : "destructive"}>
+                                {item.isActive ? "Hoạt động" : "Đã khóa"}
+                              </Badge>
+                              <p className="mt-1 text-xs text-slate-500">Tạo: {dateTime(item.createdAt)}</p>
+                            </TableCell>
                             <TableCell>
                               <div className="flex justify-end gap-2">
                                 <Button size="icon" variant="outline" onClick={() => openEditUserDialog(item)} title="Sửa người dùng">
@@ -1101,7 +1145,7 @@ export function AdminDashboardPage() {
                     </TableBody>
                   </Table>
                 </CardContent>
-                {renderPaginationControls(ordersPagination, ordersPage, loadOrders)}
+                {renderPaginationControls(usersPagination, usersPage, loadUsers)}
               </Card>
             )}
 
@@ -1122,7 +1166,7 @@ export function AdminDashboardPage() {
                         className="h-9 rounded-md border bg-white px-3 text-sm"
                       >
                         <option value="">Tất cả trạng thái</option>
-                        {orderStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                        {orderStatuses.map((status) => <option key={status} value={status}>{orderStatusLabels[status]}</option>)}
                       </select>
                     }
                   />
@@ -1161,7 +1205,7 @@ export function AdminDashboardPage() {
                                 onChange={(e) => void handleOrderStatusChange(item._id, "status", e.target.value)}
                                 className="h-8 rounded-md border bg-white px-2 text-xs"
                               >
-                                {orderStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                                {orderStatuses.map((status) => <option key={status} value={status}>{orderStatusLabels[status]}</option>)}
                               </select>
                             </TableCell>
                             <TableCell>
@@ -1170,7 +1214,7 @@ export function AdminDashboardPage() {
                                 onChange={(e) => void handleOrderStatusChange(item._id, "paymentStatus", e.target.value)}
                                 className="h-8 rounded-md border bg-white px-2 text-xs"
                               >
-                                {paymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                                {paymentStatuses.map((status) => <option key={status} value={status}>{orderPaymentStatusLabels[status]}</option>)}
                               </select>
                             </TableCell>
                             <TableCell>{dateTime(item.createdAt)}</TableCell>
@@ -1180,7 +1224,7 @@ export function AdminDashboardPage() {
                     </TableBody>
                   </Table>
                 </CardContent>
-                {renderPaginationControls(paymentsPagination, paymentsPage, loadPayments)}
+                {renderPaginationControls(ordersPagination, ordersPage, loadOrders)}
               </Card>
             )}
 
@@ -1201,7 +1245,7 @@ export function AdminDashboardPage() {
                         className="h-9 rounded-md border bg-white px-3 text-sm"
                       >
                         <option value="">Tất cả trạng thái</option>
-                        {adminPaymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                        {adminPaymentStatuses.map((status) => <option key={status} value={status}>{paymentStatusLabels[status]}</option>)}
                       </select>
                     }
                   />
@@ -1244,7 +1288,7 @@ export function AdminDashboardPage() {
                                   onChange={(e) => void handlePaymentStatusChange(item._id, e.target.value as PaymentStatus)}
                                   className="h-8 rounded-md border bg-white px-2 text-xs"
                                 >
-                                  {adminPaymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                                  {adminPaymentStatuses.map((status) => <option key={status} value={status}>{paymentStatusLabels[status]}</option>)}
                                 </select>
                               </TableCell>
                               <TableCell className="font-mono text-xs">
@@ -1264,7 +1308,7 @@ export function AdminDashboardPage() {
                     </TableBody>
                   </Table>
                 </CardContent>
-                {renderPaginationControls(shippingsPagination, shippingsPage, loadShippings)}
+                {renderPaginationControls(paymentsPagination, paymentsPage, loadPayments)}
               </Card>
             )}
 
@@ -1285,7 +1329,7 @@ export function AdminDashboardPage() {
                         className="h-9 rounded-md border bg-white px-3 text-sm"
                       >
                         <option value="">Tất cả trạng thái</option>
-                        {shippingStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                        {shippingStatuses.map((status) => <option key={status} value={status}>{shippingStatusLabels[status]}</option>)}
                       </select>
                     }
                   />
@@ -1329,7 +1373,7 @@ export function AdminDashboardPage() {
                                   onChange={(e) => void handleShippingStatusChange(item._id, e.target.value as ShippingStatus)}
                                   className="h-8 rounded-md border bg-white px-2 text-xs"
                                 >
-                                  {shippingStatuses.map((status) => <option key={status} value={status} disabled={status === "cancelled"}>{status}</option>)}
+                                  {shippingStatuses.map((status) => <option key={status} value={status} disabled={status === "cancelled"}>{shippingStatusLabels[status]}</option>)}
                                 </select>
                               </TableCell>
                               <TableCell className="text-xs text-slate-600">{latestUpdate?.notes || latestUpdate?.location || "--"}</TableCell>
@@ -1342,6 +1386,9 @@ export function AdminDashboardPage() {
                   </Table>
                 </CardContent>
                 {renderPaginationControls(shippingsPagination, shippingsPage, loadShippings)}
+                <div className="border-t p-4">
+                  <Button onClick={() => setIsCreateShippingOpen(true)}><Truck className="h-4 w-4" /> Tạo giao hàng</Button>
+                </div>
               </Card>
             )}
 
@@ -1483,9 +1530,27 @@ export function AdminDashboardPage() {
                 </CardContent>
               </Card>
             )}
+            {activeSection === "credits" && <AICreditManagementContent />}
+            {activeSection === "categories" && <AdminCategoryManagementContent />}
+            {activeSection === "aiLogs" && <AdminAILogsContent />}
+            {activeSection === "reviews" && <AdminReviewManagementContent />}
+            {activeSection === "shipping" && <AdminShippingAdvancedContent />}
           </div>
         </main>
       </div>
+
+      <Dialog open={isCreateShippingOpen} onOpenChange={setIsCreateShippingOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Tạo giao hàng</DialogTitle><DialogDescription>Chọn đơn đã xác nhận hoặc đang đóng gói.</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <select className="h-10 w-full rounded-md border bg-white px-3 text-sm" value={shippingOrderId} onChange={(e) => setShippingOrderId(e.target.value)}>
+              <option value="">Chọn đơn hàng</option>
+              {orders.filter((order) => ["confirmed", "packing"].includes(order.status)).map((order) => <option key={order._id} value={order._id}>#{order._id.slice(-8).toUpperCase()} · {order.customerName}</option>)}
+            </select>
+            <DialogFooter><Button variant="outline" onClick={() => setIsCreateShippingOpen(false)}>Hủy</Button><Button onClick={() => void handleCreateShipping()} disabled={submitting}>{submitting ? "Đang tạo..." : "Tạo giao hàng"}</Button></DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <UserDialog
         open={isUserDialogOpen}
@@ -1773,7 +1838,7 @@ function RevenueReportPanel({
                 <div key={item.paymentStatus} className="rounded-md border p-3">
                   <div className="flex items-center justify-between gap-3">
                     <Badge variant={item.paymentStatus === "paid" ? "default" : "secondary"}>
-                      {item.paymentStatus}
+                      {orderPaymentStatusLabels[item.paymentStatus]}
                     </Badge>
                     <span className="text-sm font-semibold">{item.orderCount} đơn</span>
                   </div>
@@ -1869,7 +1934,7 @@ function PaymentStatusPie({
                   innerRadius={48}
                   paddingAngle={3}
                   label={({ paymentStatus, percent }) =>
-                    `${paymentStatus} ${(percent * 100).toFixed(0)}%`
+                    `${orderPaymentStatusLabels[paymentStatus]} ${(percent * 100).toFixed(0)}%`
                   }
                 >
                   {data.map((item, index) => (
@@ -1926,7 +1991,7 @@ function RevenueStatusPie({
                   innerRadius={48}
                   paddingAngle={3}
                   label={({ status, percent }) =>
-                    `${status} ${(percent * 100).toFixed(0)}%`
+                    `${orderStatusLabels[status]} ${(percent * 100).toFixed(0)}%`
                   }
                 >
                   {data.map((item, index) => (
@@ -1964,7 +2029,7 @@ function RevenueStatusBreakdown({
           report.revenueByStatus.map((item) => (
             <div key={item.status} className="rounded-md border p-3">
               <div className="flex items-center justify-between gap-3">
-                <Badge variant="secondary">{item.status}</Badge>
+                <Badge variant="secondary">{orderStatusLabels[item.status]}</Badge>
                 <span className="text-sm font-semibold">{item.orderCount} đơn</span>
               </div>
               <p className="mt-2 text-sm text-slate-500">{money(item.revenue)}</p>
@@ -2046,7 +2111,7 @@ function RecentOrders({ orders, loading }: { orders: AdminOrder[]; loading: bool
             <div key={order._id} className="flex items-center justify-between gap-4 border-b pb-3 last:border-0 last:pb-0">
               <div>
                 <p className="font-medium">{order.customerName}</p>
-                <p className="text-sm text-slate-500">#{order._id.slice(-8).toUpperCase()} · {order.status}</p>
+                <p className="text-sm text-slate-500">#{order._id.slice(-8).toUpperCase()} · {orderStatusLabels[order.status]}</p>
               </div>
               <p className="font-semibold">{money(order.totalAmount)}</p>
             </div>
@@ -2121,7 +2186,7 @@ function UserDialog({
             <div className="space-y-2">
               <Label htmlFor="role">Vai trò</Label>
               <select id="role" value={form.role} onChange={(e) => onFormChange({ ...form, role: e.target.value as UserRole })} className="h-10 w-full rounded-md border bg-white px-3 text-sm">
-                {["user", "customer", "staff", "manager", "shipper", "admin"].map((role) => <option key={role} value={role}>{role}</option>)}
+                {["user", "staff", "shipper", "admin"].map((role) => <option key={role} value={role}>{role}</option>)}
               </select>
             </div>
             <Field label="Số điện thoại" id="phone" value={form.phone} onChange={(value) => onFormChange({ ...form, phone: value })} />

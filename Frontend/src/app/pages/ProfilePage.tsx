@@ -17,6 +17,14 @@ import { Textarea } from "../components/ui/textarea";
 import { aiPackageApi, getErrorMessage, profileApi, resolveAssetUrl } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
+import type { UserRole } from "../types";
+
+const roleLabels: Record<UserRole, string> = {
+  admin: "Quản trị viên",
+  staff: "Nhân viên",
+  shipper: "Nhân viên giao hàng",
+  user: "Khách hàng",
+};
 
 function formatDate(value?: string) {
   if (!value) {
@@ -264,9 +272,6 @@ export function ProfilePage() {
           <Card className="lg:w-80 shrink-0">
             <CardHeader>
               <CardTitle>Tài khoản của bạn</CardTitle>
-              <CardDescription>
-                Thông tin tổng quan lấy trực tiếp từ backend
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="flex flex-col items-center text-center">
@@ -292,7 +297,7 @@ export function ProfilePage() {
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-gray-500">Vai trò</span>
                   <Badge variant={user?.role === "admin" ? "default" : "secondary"}>
-                    {user?.role === "admin" ? "Admin" : "User"}
+                    {user?.role ? roleLabels[user.role] : "--"}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between gap-3">
@@ -343,7 +348,7 @@ export function ProfilePage() {
                 <p className="text-xs text-gray-500">
                   {isUploadingAvatar
                     ? "Đang tải ảnh lên..."
-                    : "Backend dùng API /profile/upload-avatar"}
+                    : "Cập nhật ảnh đại diện của bạn. Hỗ trợ định dạng JPG, PNG, GIF."}
                 </p>
               </div>
             </CardContent>

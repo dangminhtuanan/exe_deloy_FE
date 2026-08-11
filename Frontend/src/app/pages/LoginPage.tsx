@@ -10,7 +10,6 @@ import type { UserRole } from "../types";
 
 function getRoleDashboardPath(role: UserRole) {
   if (role === "admin") return "/admin";
-  if (role === "manager") return "/manager";
   if (role === "staff") return "/staff";
   if (role === "shipper") return "/shipper";
   return null;

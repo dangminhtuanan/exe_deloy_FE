@@ -28,9 +28,7 @@ export function GuestOnlyRoute() {
         to={
           user?.role === "admin"
             ? "/admin"
-            : user?.role === "manager"
-              ? "/manager"
-              : user?.role === "staff"
+            : user?.role === "staff"
                 ? "/staff"
                 : user?.role === "shipper"
                   ? "/shipper"

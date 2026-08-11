@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock, Loader2, MapPin, PackageCheck, RefreshCcw, Truck } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, LogOut, MapPin, PackageCheck, RefreshCcw, Truck, UserCircle } from "lucide-react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -45,7 +46,8 @@ function isFinalStatus(status: ShippingStatus) {
 }
 
 export function ShipperDashboardPage() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [shipments, setShipments] = useState<ShippingRecord[]>([]);
   const [statusFilter, setStatusFilter] = useState<ShippingStatus | "all">("all");
   const [location, setLocation] = useState("");
@@ -104,6 +106,12 @@ export function ShipperDashboardPage() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    toast.success("Đã đăng xuất");
+    navigate("/login", { replace: true });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -121,6 +129,14 @@ export function ShipperDashboardPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={() => navigate("/profile")}>
+              <UserCircle className="w-4 h-4 mr-2" />
+              Hồ sơ
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Đăng xuất
+            </Button>
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as ShippingStatus | "all")}

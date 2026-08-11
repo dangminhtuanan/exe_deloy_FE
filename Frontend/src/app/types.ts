@@ -91,11 +91,7 @@ export interface Order {
     | "cancelled"
     | "refunded"
     | "delivery_failed"
-    | "returned"
-    | "PENDING_PAYMENT"
-    | "PAID"
-    | "CANCELLED"
-    | "FAILED";
+    | "returned";
   totalAmount: number;
   paymentStatus: "unpaid" | "pending" | "paid" | "failed" | "refunded";
   payment?: unknown;
@@ -176,7 +172,7 @@ export interface Avatar {
   uploadedAt?: string;
 }
 
-export type UserRole = "user" | "customer" | "admin" | "manager" | "staff" | "shipper";
+export type UserRole = "user" | "admin" | "staff" | "shipper";
 
 export interface UserProfile {
   _id: string;
@@ -186,6 +182,10 @@ export interface UserProfile {
   address: string;
   role: UserRole;
   aiCredits?: number;
+  monthlyAiCredits?: number;
+  paidAiCredits?: number;
+  monthlyAiCreditPeriod?: string | null;
+  monthlyAiCreditGrantedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
   __v?: number;

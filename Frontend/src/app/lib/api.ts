@@ -528,6 +528,35 @@ interface AITransactionResponse extends MessageResponse {
   transaction: AITransaction;
 }
 
+export interface AIBehaviorLog {
+  _id: string;
+  user?: Pick<UserProfile, "_id" | "username" | "email" | "role"> | null;
+  product?: Pick<Product, "_id" | "name" | "slug"> | null;
+  action: string;
+  keyword?: string;
+  createdAt?: string;
+}
+
+export interface ChatbotLog {
+  _id: string;
+  user?: Pick<UserProfile, "_id" | "username" | "email" | "role"> | null;
+  question: string;
+  answer?: string;
+  intent?: string;
+  createdAt?: string;
+}
+
+interface AIBehaviorLogsResponse extends MessageResponse { logs: AIBehaviorLog[]; pagination?: Pagination; }
+interface ChatbotLogsResponse extends MessageResponse { logs: ChatbotLog[]; pagination?: Pagination; }
+
+interface AddCreditsResponse extends MessageResponse {
+  userId: string;
+  creditsAdded: number;
+  newBalance: number;
+  monthlyAiCredits: number;
+  paidAiCredits: number;
+}
+
 interface ShippingListResponse {
   success: boolean;
   data: ShippingRecord[];
@@ -548,6 +577,18 @@ interface ReviewsResponse extends MessageResponse {
 interface ReviewResponse extends MessageResponse {
   review: Review;
 }
+
+interface ShippingHistoryResponse {
+  success: boolean;
+  data: { trackingNumber: string; updates: ShippingRecord["updates"] };
+}
+
+export interface AdminReview extends Omit<Review, "user" | "product"> {
+  isVisible: boolean;
+  user?: Pick<UserProfile, "_id" | "username" | "email">;
+  product?: Pick<Product, "_id" | "name" | "slug">;
+}
+interface AdminReviewsResponse extends MessageResponse { reviews: AdminReview[]; pagination?: Pagination; }
 
 interface RecommendationResponse extends MessageResponse {
   products: ApiProduct[];
@@ -954,6 +995,15 @@ export const categoriesApi = {
       category: normalizeCategory(response.category),
     };
   },
+  create(payload: { name: string; description?: string; parent?: string | null; slug?: string }) {
+    return request<CategoryResponse>("/categories", { method: "POST", auth: true, body: payload });
+  },
+  update(id: string, payload: { name?: string; description?: string; parent?: string | null; slug?: string; isActive?: boolean }) {
+    return request<CategoryResponse>(`/categories/${id}`, { method: "PUT", auth: true, body: payload });
+  },
+  remove(id: string) {
+    return request<MessageResponse>(`/categories/${id}`, { method: "DELETE", auth: true });
+  },
 };
 
 export const productsApi = {
@@ -1207,6 +1257,22 @@ export const aiPackageApi = {
       params,
     });
   },
+  getById(id: string) {
+    return request<PaymentResponse>(`/payments/${id}`, { auth: true });
+  },
+  getAllTransactions(params: { page?: number; limit?: number; status?: AITransaction["status"] } = {}) {
+    return request<AITransactionsResponse>("/ai-packages/transactions", {
+      auth: true,
+      params,
+    });
+  },
+  addCredits(payload: { userId: string; credits: number; reason?: string }) {
+    return request<AddCreditsResponse>("/ai-packages/add-credits", {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  },
   purchase(packageId: string) {
     return request<AIPurchaseResponse>("/ai-packages/purchase", {
       method: "POST",
@@ -1278,6 +1344,12 @@ export const shippingApi = {
       body: { reason },
     });
   },
+  assignShipper(shippingId: string, shipperId: string) {
+    return request<ShippingResponse>(`/shipping/${shippingId}/assign-shipper`, { method: "POST", auth: true, body: { shipperId } });
+  },
+  getHistory(shippingId: string) {
+    return request<ShippingHistoryResponse>(`/shipping/${shippingId}/history`, { auth: true });
+  },
 };
 
 export const reviewsApi = {
@@ -1305,6 +1377,15 @@ export const reviewsApi = {
       method: "DELETE",
       auth: true,
     });
+  },
+  getAll(params: { page?: number; limit?: number; visible?: boolean } = {}) {
+    return request<AdminReviewsResponse>("/reviews/admin", { auth: true, params });
+  },
+  setVisibility(id: string, isVisible: boolean) {
+    return request<MessageResponse>(`/reviews/${id}/visibility`, { method: "PATCH", auth: true, body: { isVisible } });
+  },
+  adminRemove(id: string) {
+    return request<MessageResponse>(`/reviews/${id}/admin`, { method: "DELETE", auth: true });
   },
 };
 
@@ -1390,5 +1471,11 @@ export const aiApi = {
       method: "POST",
       body: payload,
     });
+  },
+  getBehaviorLogs(params: { page?: number; limit?: number } = {}) {
+    return request<AIBehaviorLogsResponse>("/ai/behavior-logs", { auth: true, params });
+  },
+  getChatbotLogs(params: { page?: number; limit?: number } = {}) {
+    return request<ChatbotLogsResponse>("/ai/chatbot-logs", { auth: true, params });
   },
 };
