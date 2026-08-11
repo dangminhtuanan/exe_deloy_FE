@@ -314,10 +314,22 @@ interface ProfileResponse extends MessageResponse {
 
 interface UsersResponse extends MessageResponse {
   users: UserProfile[];
+  pagination?: Pagination;
 }
 
 interface UserResponse extends MessageResponse {
   user: UserProfile;
+}
+
+interface AccessLogHistoryResponse extends MessageResponse {
+  logs: Array<{
+    _id: string;
+    action: string;
+    ipAddress?: string;
+    user?: Pick<UserProfile, "_id" | "username" | "email">;
+    createdAt: string;
+  }>;
+  pagination?: Pagination;
 }
 
 interface RefreshTokenResponse extends MessageResponse {
@@ -376,6 +388,7 @@ interface ProductResponse extends MessageResponse {
 
 interface CategoriesResponse extends MessageResponse {
   categories: Category[];
+  pagination?: Pagination;
 }
 
 interface CategoryResponse extends MessageResponse {
@@ -388,6 +401,7 @@ interface CartResponse extends MessageResponse {
 
 interface OrdersResponse extends MessageResponse {
   orders: Order[];
+  pagination?: Pagination;
 }
 
 interface OrderResponse extends MessageResponse {
@@ -413,6 +427,7 @@ export interface PaymentStatusResponse extends MessageResponse {
 
 interface PaymentsResponse extends MessageResponse {
   payments: Payment[];
+  pagination?: Pagination;
 }
 
 interface PaymentResponse extends MessageResponse {
@@ -471,28 +486,9 @@ export interface RevenueReportResponse extends MessageResponse {
   }>;
 }
 
-export interface VisitorReportResponse extends MessageResponse {
-  propertyId: string;
-  generatedAt: string;
-  realtime: {
-    activeUsers: number;
-  };
-  today: {
-    activeUsers: number;
-    newUsers: number;
-    sessions: number;
-    pageViews: number;
-  };
-  topPages: Array<{
-    path: string;
-    title: string;
-    pageViews: number;
-    activeUsers: number;
-  }>;
-}
-
 interface AIPackagesResponse extends MessageResponse {
   packages: AIPackage[];
+  pagination?: Pagination;
 }
 
 interface AICreditsBalanceResponse extends MessageResponse {
@@ -502,6 +498,7 @@ interface AICreditsBalanceResponse extends MessageResponse {
 
 interface AITransactionsResponse extends MessageResponse {
   transactions: AITransaction[];
+  pagination?: Pagination;
 }
 
 interface AIPurchaseResponse extends MessageResponse {
@@ -534,6 +531,7 @@ interface AITransactionResponse extends MessageResponse {
 interface ShippingListResponse {
   success: boolean;
   data: ShippingRecord[];
+  pagination?: Pagination;
 }
 
 interface ShippingResponse {
@@ -544,6 +542,7 @@ interface ShippingResponse {
 
 interface ReviewsResponse extends MessageResponse {
   reviews: Review[];
+  pagination?: Pagination;
 }
 
 interface ReviewResponse extends MessageResponse {
@@ -599,10 +598,12 @@ interface ApiAIOutfitHistoryItem extends Omit<AIOutfitHistoryItem, "product"> {
 
 interface AIOutfitHistoryResponse extends MessageResponse {
   recommendations: ApiAIOutfitHistoryItem[];
+  pagination?: Pagination;
 }
 
 interface NormalizedAIOutfitHistoryResponse extends MessageResponse {
   recommendations: AIOutfitHistoryItem[];
+  pagination?: Pagination;
 }
 
 interface UploadImageResponse extends MessageResponse {
@@ -891,10 +892,20 @@ export const profileApi = {
   },
 };
 
+export const accessLogApi = {
+  getLoginHistory(params: { page?: number; limit?: number } = {}) {
+    return request<AccessLogHistoryResponse>("/access-logs/login-history", {
+      auth: true,
+      params,
+    });
+  },
+};
+
 export const usersApi = {
-  getAll() {
+  getAll(params: { page?: number; limit?: number } = {}) {
     return request<UsersResponse>("/users", {
       auth: true,
+      params,
     });
   },
   getById(id: string) {
@@ -925,8 +936,10 @@ export const usersApi = {
 };
 
 export const categoriesApi = {
-  async getAll() {
-    const response = await request<CategoriesResponse>("/categories");
+  async getAll(params: { page?: number; limit?: number } = {}) {
+    const response = await request<CategoriesResponse>("/categories", {
+      params,
+    });
 
     return {
       ...response,
@@ -1085,12 +1098,13 @@ export const ordersApi = {
       auth: true,
     });
   },
-  getMy() {
+  getMy(params: { page?: number; limit?: number } = {}) {
     return request<OrdersResponse>("/orders/my", {
       auth: true,
+      params,
     });
   },
-  getAll(params: { status?: Order["status"]; paymentStatus?: Order["paymentStatus"] } = {}) {
+  getAll(params: { status?: Order["status"]; paymentStatus?: Order["paymentStatus"]; page?: number; limit?: number } = {}) {
     return request<OrdersResponse>("/orders", {
       auth: true,
       params,
@@ -1120,7 +1134,13 @@ export const ordersApi = {
 };
 
 export const paymentsApi = {
-  getAll(params: { status?: PaymentStatus; provider?: Payment["provider"] } = {}) {
+  getMy(params: { page?: number; limit?: number } = {}) {
+    return request<PaymentsResponse>("/payments/my", {
+      auth: true,
+      params,
+    });
+  },
+  getAll(params: { status?: PaymentStatus; provider?: Payment["provider"]; page?: number; limit?: number } = {}) {
     return request<PaymentsResponse>("/payments", {
       auth: true,
       params,
@@ -1142,20 +1162,18 @@ export const reportsApi = {
       params,
     });
   },
-  getVisitors() {
-    return request<VisitorReportResponse>("/reports/visitors", {
-      auth: true,
-    });
-  },
 };
 
 export const aiPackageApi = {
-  getPackages() {
-    return request<AIPackagesResponse>("/ai-packages/packages");
+  getPackages(params: { page?: number; limit?: number } = {}) {
+    return request<AIPackagesResponse>("/ai-packages/packages", {
+      params,
+    });
   },
-  getAll() {
+  getAll(params: { page?: number; limit?: number } = {}) {
     return request<AIPackagesResponse>("/ai-packages/packages/all", {
       auth: true,
+      params,
     });
   },
   create(payload: { name: string; description?: string; price: number; credits: number; features?: string[]; duration?: AIPackage["duration"]; isTrial?: boolean; active?: boolean; displayOrder?: number }) {
@@ -1183,9 +1201,10 @@ export const aiPackageApi = {
       auth: true,
     });
   },
-  getMyTransactions() {
+  getMyTransactions(params: { page?: number; limit?: number } = {}) {
     return request<AITransactionsResponse>("/ai-packages/my/transactions", {
       auth: true,
+      params,
     });
   },
   purchase(packageId: string) {
@@ -1225,16 +1244,21 @@ export const shippingApi = {
       body: payload,
     });
   },
-  getAll(status?: ShippingStatus) {
+  getAll(params: { status?: ShippingStatus; page?: number; limit?: number } = {}) {
     return request<ShippingListResponse>("/shipping", {
       auth: true,
-      params: status ? { status } : undefined,
+      params,
     });
   },
-  getMyShipments(status?: ShippingStatus) {
+  getMyShipments(statusOrParams: ShippingStatus | { status?: ShippingStatus; page?: number; limit?: number } = {}) {
+    const params =
+      typeof statusOrParams === "string"
+        ? { status: statusOrParams }
+        : statusOrParams;
+
     return request<ShippingListResponse>("/shipping/my/shipments", {
       auth: true,
-      params: status ? { status } : undefined,
+      params,
     });
   },
   updateStatus(
@@ -1257,8 +1281,10 @@ export const shippingApi = {
 };
 
 export const reviewsApi = {
-  getProductReviews(productId: string) {
-    return request<ReviewsResponse>(`/reviews/product/${productId}`);
+  getProductReviews(productId: string, params: { page?: number; limit?: number } = {}) {
+    return request<ReviewsResponse>(`/reviews/product/${productId}`, {
+      params,
+    });
   },
   create(payload: CreateReviewPayload) {
     return request<ReviewResponse>("/reviews", {
@@ -1323,9 +1349,10 @@ export const aiApi = {
       body: payload,
     });
   },
-  async getMyTryOns() {
+  async getMyTryOns(params: { page?: number; limit?: number } = {}) {
     const response = await request<AIOutfitHistoryResponse>("/ai/try-ons/my", {
       auth: true,
+      params,
     });
 
     return {

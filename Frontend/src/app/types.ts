@@ -261,6 +261,22 @@ export interface AuthSession {
   profile: UserProfile;
 }
 
+export interface AccessLogItem {
+  _id: string;
+  type: "login" | "request";
+  ip: string;
+  userAgent: string;
+  createdAt: string;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export interface AccessLogHistoryResponse extends MessageResponse {
+  logs: AccessLogItem[];
+}
+
 export interface LoginPayload {
   email: string;
   password: string;

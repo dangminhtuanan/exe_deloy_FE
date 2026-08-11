@@ -65,6 +65,7 @@ import {
 import { Textarea } from "../components/ui/textarea";
 import { useAuth } from "../contexts/AuthContext";
 import {
+  accessLogApi,
   aiPackageApi,
   categoriesApi,
   getErrorMessage,
@@ -75,10 +76,10 @@ import {
   shippingApi,
   usersApi,
 } from "../lib/api";
-import type { Category, Order, Payment, PaymentStatus, Product, ShippingRecord, ShippingStatus, UserProfile, UserRole } from "../types";
-import type { RevenueReportResponse, VisitorReportResponse } from "../lib/api";
+import type { AccessLogItem, Category, Order, Payment, PaymentStatus, Pagination, Product, ShippingRecord, ShippingStatus, UserProfile, UserRole, AIPackage } from "../types";
+import type { RevenueReportResponse } from "../lib/api";
 
-type AdminSection = "overview" | "reports" | "users" | "orders" | "payments" | "shipping" | "products" | "packages";
+type AdminSection = "overview" | "reports" | "users" | "orders" | "payments" | "shipping" | "products" | "packages" | "accessLogs";
 type AdminOrder = Order & { user?: Pick<UserProfile, "_id" | "username" | "email" | "phone"> };
 
 interface UserFormData {
@@ -210,6 +211,7 @@ const chartColors = ["#0f172a", "#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c
 const sections = [
   { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
   { id: "reports", label: "Thống kê", icon: BadgeCheck },
+  { id: "accessLogs", label: "Lịch sử truy cập", icon: Shield },
   { id: "users", label: "Quản lý người dùng", icon: Users },
   { id: "orders", label: "Quản lý đơn hàng", icon: ClipboardList },
   { id: "payments", label: "Thanh toán", icon: CreditCard },
@@ -249,6 +251,8 @@ function getDateRange(days: string) {
   };
 }
 
+const PAGE_SIZE = 10;
+
 function compactMoney(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
     notation: "compact",
@@ -258,6 +262,40 @@ function compactMoney(value?: number) {
 
 function shortLabel(value: string, maxLength = 18) {
   return value.length > maxLength ? `${value.slice(0, maxLength - 1)}...` : value;
+}
+
+function renderPaginationControls(
+  pagination: Pagination | null,
+  currentPage: number,
+  onPageChange: (page: number) => void,
+) {
+  if (!pagination || pagination.totalPages <= 1) return null;
+
+  return (
+    <div className="flex flex-col gap-2 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-sm text-slate-500">
+        Trang {currentPage} / {pagination.totalPages} · Tổng {pagination.total} mục
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={currentPage <= 1}
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+        >
+          Trước
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={currentPage >= pagination.totalPages}
+          onClick={() => onPageChange(Math.min(pagination.totalPages, currentPage + 1))}
+        >
+          Tiếp
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function AdminDashboardPage() {
@@ -273,8 +311,6 @@ export function AdminDashboardPage() {
   const [packages, setPackages] = useState<AIPackage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [revenueReport, setRevenueReport] = useState<RevenueReportResponse | null>(null);
-  const [visitorReport, setVisitorReport] = useState<VisitorReportResponse | null>(null);
-  const [visitorError, setVisitorError] = useState("");
 
   const [userSearch, setUserSearch] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
@@ -295,7 +331,22 @@ export function AdminDashboardPage() {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [loadingRevenue, setLoadingRevenue] = useState(true);
-  const [loadingVisitors, setLoadingVisitors] = useState(true);
+  const [loadingAccessLogs, setLoadingAccessLogs] = useState(true);
+  const [accessLogs, setAccessLogs] = useState<AccessLogItem[]>([]);
+  const [usersPagination, setUsersPagination] = useState<Pagination | null>(null);
+  const [ordersPagination, setOrdersPagination] = useState<Pagination | null>(null);
+  const [paymentsPagination, setPaymentsPagination] = useState<Pagination | null>(null);
+  const [shippingsPagination, setShippingsPagination] = useState<Pagination | null>(null);
+  const [productsPagination, setProductsPagination] = useState<Pagination | null>(null);
+  const [packagesPagination, setPackagesPagination] = useState<Pagination | null>(null);
+  const [accessLogsPagination, setAccessLogsPagination] = useState<Pagination | null>(null);
+  const [usersPage, setUsersPage] = useState(1);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [paymentsPage, setPaymentsPage] = useState(1);
+  const [shippingsPage, setShippingsPage] = useState(1);
+  const [productsPage, setProductsPage] = useState(1);
+  const [packagesPage, setPackagesPage] = useState(1);
+  const [accessLogsPage, setAccessLogsPage] = useState(1);
 
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -309,11 +360,13 @@ export function AdminDashboardPage() {
   const [packageForm, setPackageForm] = useState<AIPackageFormData>(emptyPackageForm);
   const [submitting, setSubmitting] = useState(false);
 
-  const loadUsers = async () => {
+  const loadUsers = async (page = usersPage) => {
     setLoadingUsers(true);
     try {
-      const response = await usersApi.getAll();
+      const response = await usersApi.getAll({ page, limit: PAGE_SIZE });
       setUsers(response.users);
+      setUsersPagination(response.pagination ?? null);
+      setUsersPage(page);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -321,13 +374,17 @@ export function AdminDashboardPage() {
     }
   };
 
-  const loadOrders = async () => {
+  const loadOrders = async (page = ordersPage) => {
     setLoadingOrders(true);
     try {
-      const response = await ordersApi.getAll(
-        orderStatusFilter ? { status: orderStatusFilter as Order["status"] } : {},
-      );
+      const response = await ordersApi.getAll({
+        ...(orderStatusFilter ? { status: orderStatusFilter as Order["status"] } : {}),
+        page,
+        limit: PAGE_SIZE,
+      });
       setOrders(response.orders as AdminOrder[]);
+      setOrdersPagination(response.pagination ?? null);
+      setOrdersPage(page);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -335,13 +392,17 @@ export function AdminDashboardPage() {
     }
   };
 
-  const loadPayments = async () => {
+  const loadPayments = async (page = paymentsPage) => {
     setLoadingPayments(true);
     try {
-      const response = await paymentsApi.getAll(
-        paymentStatusFilter ? { status: paymentStatusFilter as PaymentStatus } : {},
-      );
+      const response = await paymentsApi.getAll({
+        ...(paymentStatusFilter ? { status: paymentStatusFilter as PaymentStatus } : {}),
+        page,
+        limit: PAGE_SIZE,
+      });
       setPayments(response.payments);
+      setPaymentsPagination(response.pagination ?? null);
+      setPaymentsPage(page);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -349,13 +410,17 @@ export function AdminDashboardPage() {
     }
   };
 
-  const loadShippings = async () => {
+  const loadShippings = async (page = shippingsPage) => {
     setLoadingShippings(true);
     try {
-      const response = await shippingApi.getAll(
-        shippingStatusFilter ? (shippingStatusFilter as ShippingStatus) : undefined,
-      );
+      const response = await shippingApi.getAll({
+        ...(shippingStatusFilter ? { status: shippingStatusFilter as ShippingStatus } : {}),
+        page,
+        limit: PAGE_SIZE,
+      });
       setShippings(response.data);
+      setShippingsPagination(response.pagination ?? null);
+      setShippingsPage(page);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -363,14 +428,16 @@ export function AdminDashboardPage() {
     }
   };
 
-  const loadProducts = async () => {
+  const loadProducts = async (page = productsPage) => {
     setLoadingProducts(true);
     try {
       const [productResponse, categoryResponse] = await Promise.all([
-        productsApi.getAll({ limit: 100, sort: "newest" }),
+        productsApi.getAll({ page, limit: PAGE_SIZE, sort: "newest" }),
         categoriesApi.getAll(),
       ]);
       setProducts(productResponse.products);
+      setProductsPagination(productResponse.pagination ?? null);
+      setProductsPage(page);
       setCategories(categoryResponse.categories);
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -379,15 +446,39 @@ export function AdminDashboardPage() {
     }
   };
 
-  const loadPackages = async () => {
+  const loadPackages = async (page = packagesPage) => {
     setLoadingPackages(true);
     try {
-      const response = await aiPackageApi.getAll();
+      const response = await aiPackageApi.getAll({ page, limit: PAGE_SIZE });
       setPackages(response.packages);
+      setPackagesPagination(response.pagination ?? null);
+      setPackagesPage(page);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
       setLoadingPackages(false);
+    }
+  };
+
+  const loadAccessLogs = async (page = accessLogsPage) => {
+    setLoadingAccessLogs(true);
+    try {
+      const response = await accessLogApi.getLoginHistory({ page, limit: PAGE_SIZE });
+      // Normalize possible server shapes (older API used action/ipAddress/user)
+      const normalized = (response.logs || []).map((l: any) => ({
+        _id: l._id || l.id,
+        type: l.type || l.action || "request",
+        ip: l.ip || l.ipAddress || "",
+        userAgent: l.userAgent || l.ua || "",
+        createdAt: l.createdAt,
+      })) as AccessLogItem[];
+      setAccessLogs(normalized);
+      setAccessLogsPagination(response.pagination ?? null);
+      setAccessLogsPage(page);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setLoadingAccessLogs(false);
     }
   };
 
@@ -410,43 +501,32 @@ export function AdminDashboardPage() {
     }
   };
 
-  const loadVisitorReport = async () => {
-    setLoadingVisitors(true);
-    setVisitorError("");
-    try {
-      const response = await reportsApi.getVisitors();
-      setVisitorReport(response);
-    } catch (error) {
-      setVisitorReport(null);
-      setVisitorError(getErrorMessage(error));
-    } finally {
-      setLoadingVisitors(false);
-    }
-  };
-
   useEffect(() => {
     void Promise.all([
-      loadUsers(),
-      loadOrders(),
-      loadPayments(),
-      loadShippings(),
+      loadUsers(1),
+      loadOrders(1),
+      loadPayments(1),
+      loadShippings(1),
       loadProducts(),
-      loadPackages(),
+      loadPackages(1),
+      loadAccessLogs(1),
       loadRevenueReport(),
-      loadVisitorReport(),
     ]);
   }, []);
 
   useEffect(() => {
-    void loadOrders();
+    setOrdersPage(1);
+    void loadOrders(1);
   }, [orderStatusFilter]);
 
   useEffect(() => {
-    void loadPayments();
+    setPaymentsPage(1);
+    void loadPayments(1);
   }, [paymentStatusFilter]);
 
   useEffect(() => {
-    void loadShippings();
+    setShippingsPage(1);
+    void loadShippings(1);
   }, [shippingStatusFilter]);
 
   useEffect(() => {
@@ -459,15 +539,15 @@ export function AdminDashboardPage() {
       .reduce((total, item) => total + item.totalAmount, 0);
 
     return {
-      users: users.length,
+      users: usersPagination?.total ?? users.length,
       admins: users.filter((item) => item.role === "admin").length,
-      orders: orders.length,
+      orders: ordersPagination?.total ?? orders.length,
       pendingOrders: orders.filter((item) => ["pending", "PENDING_PAYMENT"].includes(item.status)).length,
-      payments: payments.length,
+      payments: paymentsPagination?.total ?? payments.length,
       paidPayments: payments.filter((item) => item.status === "PAID").length,
-      shippings: shippings.length,
+      shippings: shippingsPagination?.total ?? shippings.length,
       activeShippings: shippings.filter((item) => !["delivered", "failed", "returned", "cancelled"].includes(item.shippingStatus)).length,
-      products: products.length,
+      products: productsPagination?.total ?? products.length,
       lowStock: products.filter((item) => (item.stock || 0) <= 5).length,
       revenue: revenueReport?.summary.totalRevenue ?? revenue,
     };
@@ -862,7 +942,7 @@ export function AdminDashboardPage() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => void Promise.all([loadUsers(), loadOrders(), loadPayments(), loadShippings(), loadProducts(), loadPackages(), loadVisitorReport()])}
+                  onClick={() => void Promise.all([loadUsers(), loadOrders(), loadPayments(), loadShippings(), loadProducts(), loadPackages(), loadRevenueReport()])}
                 >
                   <RefreshCcw className="h-4 w-4" />
                   Làm mới tất cả
@@ -875,27 +955,21 @@ export function AdminDashboardPage() {
             </div>
 
             <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-              <StatCard title="Người dùng" value={5} description="Dữ liệu báo cáo mẫu" icon={Users} />
+              <StatCard title="Người dùng" value={stats.users} description="Tổng số người dùng hiện tại" icon={Users} />
               <StatCard
-                title="Đang truy cập website"
-                value={loadingVisitors ? "..." : visitorReport?.realtime.activeUsers ?? 0}
-                description="Người dùng trong 30 phút gần nhất"
+                title="Lượt truy cập website"
+                value={accessLogsPagination?.total ?? accessLogs.length}
+                description="Tổng lượt truy cập website"
                 icon={Eye}
               />
-              <StatCard title="Thanh toán" value={0} description="0 đã thanh toán" icon={CreditCard} />
-              <StatCard title="Giao hàng" value={0} description="0 đang xử lý" icon={Truck} />
+              <StatCard title="Thanh toán" value={stats.payments} description="0 đã thanh toán" icon={CreditCard} />
+              <StatCard title="Giao hàng" value={stats.shippings} description="0 đang xử lý" icon={Truck} />
               <StatCard title="Sản phẩm" value={stats.products} description={`${stats.lowStock} sản phẩm sắp hết`} icon={Boxes} />
-              <StatCard title="Doanh thu đã ghi nhận" value={money(0)} description="Dữ liệu báo cáo mẫu" icon={BadgeCheck} />
+              <StatCard title="Doanh thu đã ghi nhận" value={money(stats.revenue)} description="Dữ liệu báo cáo mẫu" icon={BadgeCheck} />
             </div>
 
             {activeSection === "overview" && (
               <div className="grid gap-4">
-                <VisitorAnalyticsPanel
-                  report={visitorReport}
-                  loading={loadingVisitors}
-                  error={visitorError}
-                  onRefresh={() => void loadVisitorReport()}
-                />
                 <LowStockProducts products={products.filter((item) => (item.stock || 0) <= 5).slice(0, 6)} loading={loadingProducts} />
               </div>
             )}
@@ -919,6 +993,51 @@ export function AdminDashboardPage() {
                   <RevenueStatusBreakdown report={null} loading={false} />
                 </div>
               </div>
+            )}
+
+            {activeSection === "accessLogs" && (
+              <Card>
+                <CardHeader className="gap-4">
+                  <Toolbar
+                    title="Lịch sử truy cập"
+                    description="Các lần đăng nhập gần đây của bạn với token hiện tại"
+                    searchValue={""}
+                    searchPlaceholder=""
+                    onSearchChange={() => undefined}
+                    onRefresh={() => void loadAccessLogs(accessLogsPage)}
+                  />
+                </CardHeader>
+                <CardContent className="overflow-x-auto p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Thời gian</TableHead>
+                        <TableHead>Loại</TableHead>
+                        <TableHead>IP</TableHead>
+                        <TableHead>User Agent</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loadingAccessLogs ? (
+                        <EmptyRow colSpan={4} text="Đang tải lịch sử truy cập..." />
+                      ) : accessLogs.length === 0 ? (
+                        <EmptyRow colSpan={4} text="Chưa có lịch sử truy cập" />
+                      ) : (
+                        accessLogs.map((log) => (
+                          <TableRow key={log._id}>
+                            <TableCell>{dateTime(log.createdAt)}</TableCell>
+                            <TableCell>{log.type}</TableCell>
+                            <TableCell>{log.ip || "-"}</TableCell>
+                            <TableCell className="max-w-[28rem] truncate">{log.userAgent || "-"}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+                {renderPaginationControls(accessLogsPagination, accessLogsPage, loadAccessLogs)}
+                {renderPaginationControls(usersPagination, usersPage, loadUsers)}
+              </Card>
             )}
 
             {activeSection === "users" && (
@@ -982,6 +1101,7 @@ export function AdminDashboardPage() {
                     </TableBody>
                   </Table>
                 </CardContent>
+                {renderPaginationControls(ordersPagination, ordersPage, loadOrders)}
               </Card>
             )}
 
@@ -1060,6 +1180,7 @@ export function AdminDashboardPage() {
                     </TableBody>
                   </Table>
                 </CardContent>
+                {renderPaginationControls(paymentsPagination, paymentsPage, loadPayments)}
               </Card>
             )}
 
@@ -1143,6 +1264,7 @@ export function AdminDashboardPage() {
                     </TableBody>
                   </Table>
                 </CardContent>
+                {renderPaginationControls(shippingsPagination, shippingsPage, loadShippings)}
               </Card>
             )}
 
@@ -1219,6 +1341,7 @@ export function AdminDashboardPage() {
                     </TableBody>
                   </Table>
                 </CardContent>
+                {renderPaginationControls(shippingsPagination, shippingsPage, loadShippings)}
               </Card>
             )}
 
@@ -1286,6 +1409,7 @@ export function AdminDashboardPage() {
                     </TableBody>
                   </Table>
                 </CardContent>
+                {renderPaginationControls(productsPagination, productsPage, loadProducts)}
               </Card>
             )}
 
@@ -1417,108 +1541,6 @@ function StatCard({
       <CardContent>
         <CardTitle className="text-2xl">{value}</CardTitle>
         <p className="mt-1 text-sm text-slate-500">{description}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function VisitorAnalyticsPanel({
-  report,
-  loading,
-  error,
-  onRefresh,
-}: {
-  report: VisitorReportResponse | null;
-  loading: boolean;
-  error: string;
-  onRefresh: () => void;
-}) {
-  const metrics = [
-    { label: "Đang hoạt động", value: report?.realtime.activeUsers ?? 0, note: "30 phút gần nhất" },
-    { label: "Người dùng hôm nay", value: report?.today.activeUsers ?? 0, note: `${report?.today.newUsers ?? 0} người dùng mới` },
-    { label: "Phiên hôm nay", value: report?.today.sessions ?? 0, note: "Tổng số phiên truy cập" },
-    { label: "Lượt xem hôm nay", value: report?.today.pageViews ?? 0, note: "Tổng lượt xem trang" },
-  ];
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-        <div>
-          <CardTitle>Truy cập website</CardTitle>
-          <CardDescription className="mt-1">
-            Dữ liệu Google Analytics thời gian thực và 7 ngày gần nhất
-          </CardDescription>
-        </div>
-        <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
-          <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Làm mới
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {error ? (
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <p className="font-semibold">Chưa thể đọc dữ liệu Google Analytics</p>
-            <p className="mt-1">{error}</p>
-            <p className="mt-2 text-amber-800">
-              {error.toLowerCase().includes("không có quyền")
-                ? "Hãy thêm email Service Account vào Property access management với quyền Viewer."
-                : "Cấu hình GA4_PROPERTY_ID, GA4_CLIENT_EMAIL và GA4_PRIVATE_KEY trong .env backend."}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {metrics.map((metric) => (
-                <div key={metric.label} className="rounded-md border bg-slate-50 p-4">
-                  <p className="text-sm text-slate-500">{metric.label}</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">{loading ? "..." : metric.value}</p>
-                  <p className="mt-1 text-xs text-slate-500">{metric.note}</p>
-                </div>
-              ))}
-            </div>
-
-            <div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-slate-950">Trang được xem nhiều nhất</h3>
-                {report?.generatedAt && (
-                  <span className="text-xs text-slate-500">
-                    Cập nhật {new Date(report.generatedAt).toLocaleTimeString("vi-VN")}
-                  </span>
-                )}
-              </div>
-              <div className="overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Trang</TableHead>
-                      <TableHead>Đường dẫn</TableHead>
-                      <TableHead className="text-right">Lượt xem</TableHead>
-                      <TableHead className="text-right">Người dùng</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {!loading && report?.topPages.length ? (
-                      report.topPages.map((page) => (
-                        <TableRow key={`${page.path}-${page.title}`}>
-                          <TableCell className="font-medium">{page.title}</TableCell>
-                          <TableCell className="text-slate-500">{page.path}</TableCell>
-                          <TableCell className="text-right">{page.pageViews}</TableCell>
-                          <TableCell className="text-right">{page.activeUsers}</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="py-8 text-center text-slate-500">
-                          {loading ? "Đang tải dữ liệu Google Analytics..." : "Chưa có dữ liệu truy cập"}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </>
-        )}
       </CardContent>
     </Card>
   );
