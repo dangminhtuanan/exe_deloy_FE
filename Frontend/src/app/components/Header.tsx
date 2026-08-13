@@ -1,5 +1,5 @@
-import { LogOut, ShoppingBag, User } from "lucide-react";
-import { Link, useNavigate } from "react-router";
+import { LogOut, Search, ShoppingBag, User } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { useAuth } from "../contexts/AuthContext";
@@ -16,6 +16,7 @@ const navItems = [
 
 export function Header({ cartCount }: HeaderProps) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
   const accountPath = !isAuthenticated
     ? "/login"
@@ -32,37 +33,48 @@ export function Header({ cartCount }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-t-4 border-pink-100 bg-white shadow-sm">
-      <div className="mx-auto flex h-16 max-w-7xl items-center px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 shrink-0 border-b border-slate-100 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex h-[72px] w-full max-w-[1600px] items-center px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex w-44 items-center">
           <Link to="/" className="inline-flex flex-col leading-none">
-            <span className="text-2xl font-bold tracking-tight text-pink-500">
+            <span className="text-2xl font-black tracking-[-0.06em] text-slate-950">
               OUTFIO
             </span>
-            <span className="mt-1 text-[9px] uppercase tracking-[0.25em] text-pink-300">
+            <span className="mt-1 text-[8px] uppercase tracking-[0.3em] text-slate-400">
               Fashion Store
             </span>
           </Link>
         </div>
 
         <nav className="hidden flex-1 items-center justify-center gap-7 md:flex">
-          {navItems.map((item) => (
-            <Link
-              key={item.label}
-              to={item.href}
-              className="text-[11px] font-semibold uppercase text-[#8b5d7c] transition-colors hover:text-pink-500"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+
+            return (
+              <Link
+                key={item.label}
+                to={item.href}
+                className={`relative py-7 text-[10px] font-bold uppercase transition-colors hover:text-[#3977ed] ${
+                  isActive
+                    ? "text-[#3977ed] after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#3977ed]"
+                    : "text-slate-600"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="ml-auto flex w-44 items-center justify-end gap-3">
+        <div className="ml-auto flex w-44 items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-600 hover:text-[#3977ed]" aria-label="Tìm kiếm">
+            <Search className="h-4 w-4" />
+          </Button>
           <Link to={accountPath}>
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 text-[#8b5d7c] hover:text-pink-500"
+              className="h-9 w-9 text-slate-600 hover:text-[#3977ed]"
             >
               <User className="h-4 w-4" />
             </Button>
@@ -71,7 +83,7 @@ export function Header({ cartCount }: HeaderProps) {
           {isAuthenticated && (
             <Button
               variant="ghost"
-              className="hidden h-9 px-2 text-[#8b5d7c] hover:text-pink-500 sm:inline-flex"
+              className="hidden h-9 px-2 text-slate-600 hover:text-[#3977ed] sm:inline-flex"
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4" />
@@ -83,11 +95,11 @@ export function Header({ cartCount }: HeaderProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="relative h-9 w-9 text-[#8b5d7c] hover:text-pink-500"
+              className="relative h-9 w-9 text-slate-600 hover:text-[#3977ed]"
             >
               <ShoppingBag className="h-4 w-4" />
               {cartCount > 0 && (
-                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-pink-500 px-1 text-[10px] font-semibold leading-none text-white">
+                <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#3977ed] px-1 text-[10px] font-semibold leading-none text-white">
                   {cartCount}
                 </span>
               )}
@@ -108,13 +120,15 @@ export function Header({ cartCount }: HeaderProps) {
         </div>
       </div>
 
-      <div className="border-t border-pink-50 md:hidden">
-        <nav className="mx-auto flex max-w-7xl gap-5 overflow-x-auto px-4 py-3">
+      <div className="border-t border-slate-100 md:hidden">
+        <nav className="mx-auto flex max-w-[1600px] gap-5 overflow-x-auto px-4 py-3">
           {navItems.map((item) => (
             <Link
               key={item.label}
               to={item.href}
-              className="shrink-0 text-[11px] font-semibold uppercase text-[#8b5d7c]"
+              className={`shrink-0 text-[11px] font-semibold uppercase ${
+                pathname === item.href ? "text-[#3977ed]" : "text-slate-600"
+              }`}
             >
               {item.label}
             </Link>

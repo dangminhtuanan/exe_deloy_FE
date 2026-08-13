@@ -145,7 +145,7 @@ export function ChatBot() {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="fixed inset-x-3 bottom-20 z-[9998] flex h-[min(600px,calc(100dvh-6rem))] min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-24 sm:right-6 sm:w-[380px]"
           >
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-3 bg-gradient-to-r from-purple-600 to-pink-600 p-4">
               <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
@@ -163,14 +163,14 @@ export function ChatBot() {
               </Button>
             </div>
 
-            <ScrollArea className="flex-1 p-4 bg-gray-50">
-              <div className="space-y-4">
+            <ScrollArea className="min-h-0 w-full max-w-full flex-1 overflow-hidden bg-gray-50 [&_[data-slot=scroll-area-viewport]]:overflow-x-hidden [&_[data-slot=scroll-area-viewport]>div]:!block [&_[data-slot=scroll-area-viewport]>div]:w-full [&_[data-slot=scroll-area-viewport]>div]:min-w-0">
+              <div className="w-full min-w-0 max-w-full space-y-4 overflow-x-hidden p-4 pr-5">
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
+                    className={`flex w-full min-w-0 ${message.type === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    <div className={`max-w-[85%] ${message.type === "user" ? "order-2" : "order-1"}`}>
+                    <div className={`min-w-0 max-w-[85%] ${message.type === "user" ? "order-2" : "order-1"}`}>
                       <div
                         className={`rounded-2xl px-4 py-2 ${
                           message.type === "user"
@@ -178,16 +178,16 @@ export function ChatBot() {
                             : "bg-white border border-gray-200"
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-line">{message.content}</p>
+                        <p className="whitespace-pre-line break-words text-sm [overflow-wrap:anywhere]">{message.content}</p>
                       </div>
 
                       {message.products && message.products.length > 0 && (
-                        <div className="mt-2 space-y-2">
+                        <div className="mt-2 min-w-0 max-w-full space-y-2">
                           {message.products.map((product) => (
                             <Link
                               key={product.productId || product.id}
                               to={`/product/${product.id}`}
-                              className="flex gap-3 bg-white border border-gray-200 rounded-xl p-3 hover:border-purple-300 hover:shadow-md transition-all group"
+                              className="group flex min-w-0 max-w-full gap-3 rounded-xl border border-gray-200 bg-white p-3 transition-all hover:border-purple-300 hover:shadow-md"
                               onClick={() => setIsOpen(false)}
                             >
                               <img
@@ -231,12 +231,12 @@ export function ChatBot() {
                     </div>
                   </div>
                 )}
+                <div ref={messagesEndRef} />
               </div>
-              <div ref={messagesEndRef} />
             </ScrollArea>
 
             {messages.length <= 1 && !isTyping && (
-              <div className="px-4 pb-2">
+              <div className="shrink-0 px-4 pb-2">
                 <p className="text-xs text-gray-500 mb-2">Gợi ý nhanh:</p>
                 <div className="flex flex-wrap gap-2">
                   {quickActions.map((action) => (
@@ -252,7 +252,7 @@ export function ChatBot() {
               </div>
             )}
 
-            <div className="p-4 bg-white border-t border-gray-200">
+            <div className="shrink-0 border-t border-gray-200 bg-white p-4">
               <div className="flex gap-2">
                 <Input
                   ref={inputRef}

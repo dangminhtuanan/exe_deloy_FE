@@ -14,10 +14,10 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
-import { aiPackageApi, getErrorMessage, profileApi, resolveAssetUrl } from "../lib/api";
+import { aiPackageApi, getErrorMessage, ordersApi, profileApi, resolveAssetUrl } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
-import type { UserRole } from "../types";
+import type { Order, UserRole } from "../types";
 
 const roleLabels: Record<UserRole, string> = {
   admin: "Quản trị viên",
@@ -25,6 +25,30 @@ const roleLabels: Record<UserRole, string> = {
   shipper: "Nhân viên giao hàng",
   user: "Khách hàng",
 };
+
+const orderStatusLabels: Record<Order["status"], string> = {
+  pending: "Chờ xác nhận",
+  confirmed: "Đã xác nhận",
+  packing: "Đang đóng gói",
+  shipping: "Đang giao hàng",
+  completed: "Đã giao",
+  cancelled: "Đã hủy",
+  refunded: "Đã hoàn tiền",
+  delivery_failed: "Giao hàng thất bại",
+  returned: "Đã trả hàng",
+};
+
+const paymentStatusLabels: Record<Order["paymentStatus"], string> = {
+  unpaid: "Chưa thanh toán",
+  pending: "Đang xử lý",
+  paid: "Đã thanh toán",
+  failed: "Thanh toán thất bại",
+  refunded: "Đã hoàn tiền",
+};
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
+}
 
 function formatDate(value?: string) {
   if (!value) {
@@ -57,6 +81,8 @@ export function ProfilePage() {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [aiCredits, setAiCredits] = useState<number | null>(null);
   const [isAiBalanceLoading, setIsAiBalanceLoading] = useState(true);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isOrdersLoading, setIsOrdersLoading] = useState(true);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isSendingPasswordOtp, setIsSendingPasswordOtp] = useState(false);
@@ -65,6 +91,18 @@ export function ProfilePage() {
   const [isVerifyingOldEmailOtp, setIsVerifyingOldEmailOtp] = useState(false);
   const [isSendingNewEmailOtp, setIsSendingNewEmailOtp] = useState(false);
   const [isVerifyingNewEmailOtp, setIsVerifyingNewEmailOtp] = useState(false);
+
+  const loadOrders = async () => {
+    setIsOrdersLoading(true);
+    try {
+      const response = await ordersApi.getMy({ page: 1, limit: 50 });
+      setOrders(response.orders);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsOrdersLoading(false);
+    }
+  };
 
   useEffect(() => {
     setProfileForm({
@@ -104,6 +142,10 @@ export function ProfilePage() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    void loadOrders();
   }, []);
 
   useEffect(() => {
@@ -310,25 +352,25 @@ export function ProfilePage() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-pink-100 bg-pink-50/60 p-4">
+              <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-pink-900">AI credits</p>
-                    <p className="text-xs text-pink-700">Dùng cho thử đồ và mix-match AI</p>
+                    <p className="text-sm font-medium text-blue-950">AI credits</p>
+                    <p className="text-xs text-blue-700">Dùng cho thử đồ và mix-match AI</p>
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-pink-600">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#3977ed]">
                     <Coins className="h-5 w-5" />
                   </div>
                 </div>
                 <div className="flex items-end justify-between gap-3">
                   <div>
-                    <p className="text-3xl font-bold text-pink-950">
+                    <p className="text-3xl font-bold text-blue-950">
                       {isAiBalanceLoading ? "--" : aiCredits ?? 0}
                     </p>
-                    <p className="text-xs text-pink-700">Số dư hiện tại</p>
+                    <p className="text-xs text-blue-700">Số dư hiện tại</p>
                   </div>
                   <Link to="/ai-packages">
-                    <Button size="sm" className="bg-pink-600 text-white hover:bg-pink-700">
+                    <Button size="sm" className="bg-[#3977ed] text-white hover:bg-[#2868db]">
                       <Sparkles className="h-4 w-4" />
                       Mua gói
                     </Button>
@@ -356,18 +398,92 @@ export function ProfilePage() {
 
           <div className="flex-1">
             <Tabs defaultValue="profile" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="profile">Hồ sơ</TabsTrigger>
+                <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
                 <TabsTrigger value="password">Mật khẩu</TabsTrigger>
                 <TabsTrigger value="email">Đổi email</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="orders">
+                <Card>
+                  <CardHeader className="flex-row items-start justify-between gap-4">
+                    <div>
+                      <CardTitle>Đơn hàng của tôi</CardTitle>
+                      <CardDescription>Theo dõi sản phẩm đã mua và trạng thái giao hàng.</CardDescription>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => void loadOrders()} disabled={isOrdersLoading}>
+                      {isOrdersLoading ? "Đang tải..." : "Làm mới"}
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {isOrdersLoading ? (
+                      <div className="rounded-xl border border-dashed p-10 text-center text-sm text-gray-500">Đang tải đơn hàng...</div>
+                    ) : orders.length === 0 ? (
+                      <div className="rounded-xl border border-dashed p-10 text-center">
+                        <p className="font-semibold text-gray-900">Bạn chưa có đơn hàng nào</p>
+                        <p className="mt-1 text-sm text-gray-500">Các đơn hàng sau khi mua sẽ xuất hiện tại đây.</p>
+                        <Link to="/">
+                          <Button className="mt-4 bg-[#3977ed] text-white hover:bg-[#2868db]">Mua sắm ngay</Button>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {orders.map((order) => (
+                          <article key={order._id} className="overflow-hidden rounded-xl border bg-white">
+                            <div className="flex flex-col gap-3 border-b bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">Đơn #{order._id.slice(-8).toUpperCase()}</p>
+                                <p className="mt-0.5 text-xs text-gray-500">Đặt lúc {formatDate(order.createdAt)}</p>
+                              </div>
+                              <div className="flex flex-wrap gap-2 text-xs font-medium">
+                                <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">{orderStatusLabels[order.status]}</span>
+                                <span className={`rounded-full px-3 py-1 ${order.paymentStatus === "paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                                  {paymentStatusLabels[order.paymentStatus]}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="divide-y">
+                              {order.items.map((item, index) => {
+                                const productId = typeof item.product === "string" ? item.product : item.product?.id;
+
+                                return (
+                                  <div key={`${productId || item.name}-${index}`} className="flex gap-3 p-4">
+                                    <img src={resolveAssetUrl(item.image) || "/favicon.svg"} alt={item.name} className="h-20 w-16 shrink-0 rounded-lg bg-gray-100 object-contain" />
+                                    <div className="min-w-0 flex-1">
+                                      {productId ? (
+                                        <Link to={`/product/${productId}`} className="line-clamp-2 text-sm font-semibold text-gray-900 hover:text-[#3977ed]">{item.name}</Link>
+                                      ) : (
+                                        <p className="line-clamp-2 text-sm font-semibold text-gray-900">{item.name}</p>
+                                      )}
+                                      <p className="mt-1 text-xs text-gray-500">{[item.size && `Size ${item.size}`, item.color].filter(Boolean).join(" · ") || "Không có phân loại"}</p>
+                                      <p className="mt-2 text-xs text-gray-600">{formatCurrency(item.price)} × {item.quantity}</p>
+                                    </div>
+                                    <p className="shrink-0 text-sm font-semibold text-gray-900">{formatCurrency(item.subtotal)}</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            <div className="flex flex-col gap-1 border-t px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                              <p className="text-gray-500">Giao đến: {order.address}</p>
+                              <p className="font-semibold text-gray-900">Tổng cộng: <span className="text-[#3977ed]">{formatCurrency(order.totalAmount)}</span></p>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
               <TabsContent value="profile">
                 <Card>
                   <CardHeader>
                     <CardTitle>Cập nhật thông tin cá nhân</CardTitle>
                     <CardDescription>
-                      Đồng bộ với API `GET /profile/get-profile` và `PUT /profile/update`
+                      Chỉnh sửa họ tên, số điện thoại và thông tin cá nhân của bạn.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -533,7 +649,7 @@ export function ProfilePage() {
                   <CardHeader>
                     <CardTitle>Đổi email bằng 4 bước xác thực</CardTitle>
                     <CardDescription>
-                      Luồng này bám đúng backend: xác thực email cũ trước, sau đó xác thực email mới
+                      Để bảo vệ tài khoản, bạn cần xác nhận email hiện tại trước khi đổi sang email mới.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">

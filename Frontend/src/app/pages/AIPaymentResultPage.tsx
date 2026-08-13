@@ -74,10 +74,10 @@ export function AIPaymentResultPage({ mode }: { mode: AIPaymentResultMode }) {
             : "Thanh toán đang chờ xác nhận";
 
   const pendingDescription = mode === "cancel"
-    ? "Hệ thống đang xác nhận trạng thái hủy trực tiếp với PayOS."
-    : "Hệ thống đang đối soát với PayOS. Bạn có thể giữ nguyên trang này trong giây lát.";
+    ? "Hệ thống đang xác nhận yêu cầu hủy giao dịch."
+    : "Hệ thống đang kiểm tra giao dịch. Vui lòng giữ nguyên trang trong giây lát.";
   const description = isPaid
-    ? "Credit đã được cộng đúng một lần sau khi backend xác nhận giao dịch với PayOS."
+    ? "Credit đã được cộng vào tài khoản của bạn."
     : isCancelled
       ? "Giao dịch đã được PayOS xác nhận hủy và tài khoản chưa được cộng credit."
       : isFailed

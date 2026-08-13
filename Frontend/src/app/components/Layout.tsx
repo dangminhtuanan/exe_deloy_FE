@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Outlet, useLocation } from 'react-router';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { CartSheet } from './CartSheet';
@@ -9,6 +9,11 @@ import { useCart } from '../contexts/CartContext';
 export function Layout() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { items, totalItems, updateQuantity, removeItem } = useCart();
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [pathname]);
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

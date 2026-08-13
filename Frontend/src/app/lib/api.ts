@@ -453,7 +453,6 @@ export interface RevenueReportResponse extends MessageResponse {
   summary: {
     totalRevenue: number;
     subtotal: number;
-    tax: number;
     shippingFee: number;
     orderCount: number;
     itemCount: number;

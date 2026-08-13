@@ -173,7 +173,7 @@ export function AIPackagesPage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-pink-100 bg-white px-3 py-1 text-sm font-medium text-pink-600">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-medium text-[#3977ed]">
               <Sparkles className="h-4 w-4" />
               OUTFIO AI
             </div>
@@ -209,7 +209,7 @@ export function AIPackagesPage() {
                   <p className="mt-2 text-4xl font-bold text-gray-950">{balance}</p>
                 )}
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-50 text-pink-600">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-[#3977ed]">
                 <Coins className="h-6 w-6" />
               </div>
             </div>
@@ -252,7 +252,7 @@ export function AIPackagesPage() {
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-950">Chọn gói credit</h2>
-              <p className="text-sm text-gray-500">Thanh toán qua PayOS, credit được cộng sau khi webhook xác nhận.</p>
+              <p className="text-sm text-gray-500">Quét mã QR để thanh toán. Credit sẽ tự động được cộng sau khi giao dịch thành công.</p>
             </div>
           </div>
 
@@ -269,7 +269,7 @@ export function AIPackagesPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {packages.map((item) => (
-                <Card key={item._id} className="overflow-hidden">
+                <Card key={item._id} className="flex h-full flex-col overflow-hidden">
                   <CardHeader className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -288,7 +288,7 @@ export function AIPackagesPage() {
                     </div>
                     <div>
                       <p className="text-3xl font-bold text-gray-950">{formatCurrency(item.price)}</p>
-                      <p className="mt-1 text-sm text-pink-600">{item.credits} AI credits</p>
+                      <p className="mt-1 text-sm font-medium text-[#3977ed]">{item.credits} AI credits</p>
                       {item.isTrial && (
                         <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
                           Gói dùng thử — mỗi tài khoản chỉ được mua 1 lần.
@@ -297,7 +297,7 @@ export function AIPackagesPage() {
                     </div>
                   </CardHeader>
 
-                  <CardContent className="space-y-5">
+                  <CardContent className="flex flex-1 flex-col gap-5">
                     <div className="space-y-2">
                       {(item.features.length > 0 ? item.features : ["Thử đồ AI", "Mix-match outfit", "Tư vấn sản phẩm"]).map(
                         (feature) => (
@@ -310,7 +310,7 @@ export function AIPackagesPage() {
                     </div>
 
                     <Button
-                      className="w-full bg-gray-950 text-white hover:bg-gray-800"
+                      className="mt-auto h-10 w-full justify-center gap-2 whitespace-nowrap bg-gray-950 text-sm font-medium text-white hover:bg-gray-800"
                       onClick={() => handlePurchase(item._id)}
                       disabled={purchasingId === item._id || (item.isTrial && Boolean(trialPurchaseState))}
                     >
@@ -323,7 +323,7 @@ export function AIPackagesPage() {
                         ? "Đã dùng gói thử"
                         : item.isTrial && trialPurchaseState === "PENDING"
                           ? "Đang chờ thanh toán"
-                          : "Mua bằng PayOS"}
+                          : "Thanh toán bằng QR"}
                     </Button>
                   </CardContent>
                 </Card>

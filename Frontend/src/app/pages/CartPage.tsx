@@ -12,9 +12,8 @@ export function CartPage() {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
-  const estimatedTax = totalPrice * 0.1;
   const shipping = totalPrice > 500000 ? 0 : 30000;
-  const finalTotal = totalPrice + estimatedTax + shipping;
+  const finalTotal = totalPrice + shipping;
 
   const handleUpdateQuantity = async (id: string, quantity: number) => {
     try {
@@ -153,10 +152,6 @@ export function CartPage() {
                 <div className="flex justify-between text-gray-600">
                   <span>Tạm tính</span>
                   <span className="font-medium text-gray-900">{formatPrice(totalPrice)}</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Thuế VAT (10%)</span>
-                  <span className="font-medium text-gray-900">{formatPrice(estimatedTax)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Phí vận chuyển</span>

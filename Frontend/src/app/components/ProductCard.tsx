@@ -1,4 +1,4 @@
-import { Heart, ShoppingBag } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { Button } from './ui/button';
 import { Product } from '../types';
 import { Link } from 'react-router';
@@ -10,38 +10,28 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   return (
-    <div className="group relative">
-      <Link to={`/product/${product.id}`} className="block aspect-[3/4] bg-gray-100 rounded-md overflow-hidden mb-2.5 relative">
+    <article className="group relative min-w-0">
+      <Link to={`/product/${product.id}`} className="relative mb-3 block aspect-[4/5] overflow-hidden rounded-xl bg-[#f5f6f8]">
         <img
           src={product.image || "/favicon.svg"}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
         />
         {product.discount && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-0.5 rounded text-[11px] font-semibold z-10">
+          <div className="absolute left-2 top-2 z-10 rounded-md bg-rose-500 px-2 py-1 text-[10px] font-bold text-white shadow-sm">
             -{product.discount}%
           </div>
         )}
       </Link>
 
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-        <Button
-          size="icon"
-          variant="secondary"
-          className="rounded-full h-8 w-8 bg-white hover:bg-gray-100 pointer-events-auto"
-        >
-          <Heart className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-
-      <div className="space-y-1.5">
+      <div className="space-y-1 px-0.5">
         <Link to={`/product/${product.id}`} className="block">
-          <h3 className="font-medium text-[13px] hover:text-indigo-600 transition-colors line-clamp-2">{product.name}</h3>
+          <h3 className="line-clamp-2 text-[13px] font-semibold text-slate-900 transition-colors hover:text-[#3977ed]">{product.name}</h3>
         </Link>
-        <p className="text-[11px] text-gray-600">{product.category}</p>
+        <p className="text-[11px] text-slate-400">{product.category}</p>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-            <span className="text-sm font-semibold">
+            <span className="text-sm font-bold text-slate-900">
               {product.price.toLocaleString('vi-VN')} VND
             </span>
             {product.originalPrice && (
@@ -60,6 +50,6 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           </Button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

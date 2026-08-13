@@ -84,15 +84,15 @@ export function HomePage() {
     <>
       <Hero imageUrl="https://images.unsplash.com/photo-1762430815620-fcca603c240c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwbW9kZWwlMjBydW53YXl8ZW58MXx8fHwxNzczMDY2MzQ4fDA&ixlib=rb-4.1.0&q=80&w=1080" />
 
-      <section className="py-8 border-b">
-        <div className="container mx-auto max-w-6xl px-4">
-          <div className="flex gap-4 overflow-x-auto pb-2">
+      <section className="relative z-10 -mt-12 px-4">
+        <div className="mx-auto w-full max-w-[1600px] rounded-2xl border border-white/80 bg-white/90 p-4 shadow-[0_14px_40px_rgba(72,106,160,.12)] backdrop-blur md:px-6">
+          <div className="flex gap-2 overflow-x-auto pb-1 md:justify-center scrollbar-hide">
             <button
               onClick={() => selectCategory("")}
-              className={`px-4 py-2 rounded-full border transition-colors whitespace-nowrap text-sm ${
+              className={`whitespace-nowrap rounded-full border px-5 py-2 text-xs font-semibold transition-colors ${
                 selectedCategory === ""
-                  ? "bg-black text-white border-black"
-                  : "hover:bg-black hover:text-white"
+                  ? "border-[#3977ed] bg-[#3977ed] text-white shadow-sm"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-[#3977ed] hover:text-[#3977ed]"
               }`}
             >
               Tất cả
@@ -103,10 +103,10 @@ export function HomePage() {
                 <button
                   key={category._id}
                   onClick={() => selectCategory(value)}
-                  className={`px-4 py-2 rounded-full border transition-colors whitespace-nowrap text-sm ${
+                  className={`whitespace-nowrap rounded-full border px-5 py-2 text-xs font-semibold transition-colors ${
                     selectedCategory === value
-                      ? "bg-black text-white border-black"
-                      : "hover:bg-black hover:text-white"
+                      ? "border-[#3977ed] bg-[#3977ed] text-white shadow-sm"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-[#3977ed] hover:text-[#3977ed]"
                   }`}
                 >
                   {category.name}
@@ -117,8 +117,8 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="py-12">
-        <div className="container mx-auto px-4">
+      <section className="pb-14 pt-9 md:pt-11">
+        <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold mb-8">Sản phẩm nổi bật</h2>
           {loadingProducts ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
@@ -135,7 +135,7 @@ export function HomePage() {
               Chưa có sản phẩm phù hợp.
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-5 gap-y-8">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 md:grid-cols-4 md:gap-x-5 lg:grid-cols-5 2xl:grid-cols-6">
               {products.map((product) => (
                 <ProductCard
                   key={product.productId || product.id}
@@ -173,7 +173,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="py-16 bg-gray-50">
+      <section className="border-t border-slate-100 bg-[#f7faff] py-16">
         <div className="container mx-auto px-4 text-center max-w-xl">
           <h2 className="text-2xl font-bold mb-4">Đăng ký nhận tin</h2>
           <p className="text-gray-600 mb-6">

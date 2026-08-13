@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Home,
   Shirt,
   Wand2,
   Library,
@@ -8,7 +7,6 @@ import {
   History,
   UserCircle,
   CreditCard,
-  Settings2,
   HelpCircle,
   Info,
   Plus,
@@ -25,11 +23,6 @@ import {
   Layers,
   Sparkles,
   Palette,
-  Sun,
-  Cloud,
-  Snowflake,
-  Droplets,
-  MapPin,
   TrendingUp,
   Upload,
   Search,
@@ -50,6 +43,8 @@ import modelWhiteOutfit from '@/assets/027f9141fc5b4d041b83cbfd34283e0f6c08e067.
 import { getStoredAuthSession } from '../lib/auth-storage';
 import { ApiError, aiApi, aiPackageApi, getErrorMessage, productsApi, uploadApi } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../contexts/CartContext';
+import { Header } from '../components/Header';
 import type { AIOutfitHistoryItem, Product } from '../types';
 
 const CLOTHES_IMAGES = [
@@ -459,13 +454,6 @@ function isMixMatchProductSafeForGender(product: Product, modelGender?: Product[
   return product.gender !== 'women' && !hasProductTypeKeyword(text, UNSAFE_MENS_TOP_KEYWORDS);
 }
 
-const CLOTHING_CATEGORIES = [
-  { name: 'Áo', icon: Shirt, items: 8 },
-  { name: 'Quần', icon: Shirt, items: 12 },
-  { name: 'Váy', icon: Shirt, items: 6 },
-  { name: 'Phụ kiện', icon: Sparkles, items: 15 }
-];
-
 const STYLE_SUGGESTIONS = [
   {
     id: 1,
@@ -499,13 +487,6 @@ const STYLE_SUGGESTIONS = [
     season: 'Mọi mùa',
     occasion: 'Dự tiệc'
   }
-];
-
-const WEATHER_CONDITIONS = [
-  { icon: Sun, label: 'Nắng', temp: '28-32°C' },
-  { icon: Cloud, label: 'Nhiều mây', temp: '24-28°C' },
-  { icon: Droplets, label: 'Mưa', temp: '22-26°C' },
-  { icon: Snowflake, label: 'Lạnh', temp: '15-20°C' }
 ];
 
 // Reusable components
@@ -581,8 +562,8 @@ const AIHistoryView = ({
   isLoading: boolean;
   onRefresh: () => void;
 }) => (
-  <div className="flex-1 overflow-y-auto bg-[#F9F9FB] p-4 md:p-6">
-    <div className="mx-auto max-w-[1180px]">
+  <div className="flex-1 overflow-y-auto bg-[#F9F9FB] p-4 md:p-6 lg:px-8">
+    <div className="mx-auto w-full max-w-[1440px]">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Lịch sử AI</h1>
@@ -613,7 +594,7 @@ const AIHistoryView = ({
       )}
 
       {!isLoading && historyItems.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {historyItems.map((item) => {
             const lowerClothingImageUrl = getLowerClothingImageUrl(item);
 
@@ -906,8 +887,8 @@ const AssetLibraryView = ({
   const isClothing = kind === 'clothing';
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-[#F9F9FB] p-4 md:p-6">
-      <div className="mx-auto max-w-[1180px]">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-[#F9F9FB] p-4 md:p-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1440px]">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -943,7 +924,7 @@ const AssetLibraryView = ({
             <p className="mt-1 text-sm text-gray-500">Nhấn nút thêm để tải ảnh đầu tiên lên Cloudinary.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {items.map((item) => {
               const clothingItem = isClothing ? item as SavedClothingImage : null;
               const modelItem = !isClothing ? item as SavedModelProfile : null;
@@ -1148,6 +1129,7 @@ const AssetEditorModal = ({
 };
 
 export function UseAIPage() {
+  const { totalItems } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
@@ -1159,8 +1141,6 @@ export function UseAIPage() {
   const [highQuality, setHighQuality] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
-  const [selectedWeather, setSelectedWeather] = useState(0);
-  const [selectedOccasion, setSelectedOccasion] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedResult, setGeneratedResult] = useState<string | null>(null);
   const [selectedClothing, setSelectedClothing] = useState<number | null>(null);
@@ -1951,7 +1931,9 @@ export function UseAIPage() {
   })();
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#F9F9FB] font-sans text-sm md:flex-row">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#F9F9FB]">
+      <Header cartCount={totalItems} />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden font-sans text-sm md:flex-row">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 shrink-0">
         <div className="font-semibold text-gray-900 flex items-center gap-2">
@@ -1999,9 +1981,8 @@ export function UseAIPage() {
 
       {/* Sidebar - Desktop & Mobile overlay */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-[240px] bg-white border-r border-gray-200 flex flex-col h-full transition-transform transform md:relative md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-4 flex items-center justify-between md:block">
-          <NavItem icon={Home} label="Trang chủ" onClick={() => navigateFromSidebar('/')} />
-          <button className="md:hidden p-2 text-gray-400" onClick={() => setMobileMenuOpen(false)}>
+        <div className="flex items-center justify-end p-4 md:hidden">
+          <button className="p-2 text-gray-400" onClick={() => setMobileMenuOpen(false)}>
             <ChevronLeft className="w-5 h-5" />
           </button>
         </div>
@@ -2264,7 +2245,7 @@ export function UseAIPage() {
                     {!isLoadingProducts && availableShopClothingChoices.length === 0 && (
                       <div className="text-xs text-gray-500 py-4">
                         {clothesTab === 0
-                          ? 'Chưa có sản phẩm có ảnh trong API.'
+                          ? 'Hiện chưa có sản phẩm phù hợp để hiển thị.'
                           : `Chưa có sản phẩm phù hợp cho ${activeComboSlot === 'upper' ? 'phần trên' : 'phần dưới'}.`}
                       </div>
                     )}
@@ -2471,7 +2452,7 @@ export function UseAIPage() {
                       <div className="text-xs text-gray-500 py-4">Đang tải sản phẩm...</div>
                     )}
                     {!isLoadingProducts && stylingProductChoices.length === 0 && (
-                      <div className="text-xs text-gray-500 py-4">Chưa có sản phẩm áo/quần có ảnh trong API.</div>
+                      <div className="text-xs text-gray-500 py-4">Hiện chưa có sản phẩm áo hoặc quần phù hợp.</div>
                     )}
                     {stylingProductChoices.map((product, i) => (
                       <button 
@@ -2576,105 +2557,6 @@ export function UseAIPage() {
                   </div>
                 </div>
 
-                <hr className="border-gray-100 mb-8" />
-
-                {/* Tủ đồ hiện tại */}
-                <div className="mb-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-base font-semibold text-gray-900">Tủ đồ hiện tại</h2>
-                    <button className="text-xs font-medium text-[#20B29A] hover:underline flex items-center gap-1">
-                      <Plus className="w-3.5 h-3.5" />
-                      Thêm mới
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-3">
-                    {CLOTHING_CATEGORIES.map((category, idx) => (
-                      <div key={idx} className="bg-gray-50 rounded-lg p-3 text-center hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200">
-                        <category.icon className="w-8 h-8 mx-auto mb-2 text-gray-600" />
-                        <p className="text-xs font-medium text-gray-900 mb-0.5">{category.name}</p>
-                        <p className="text-[10px] text-gray-500">{category.items} items</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <hr className="border-gray-100 mb-8" />
-
-                {/* Điều kiện thời tiết */}
-                <div className="mb-8">
-                  <div className="flex items-center gap-2 mb-4">
-                    <h2 className="text-base font-semibold text-gray-900">Thời tiết hôm nay</h2>
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {WEATHER_CONDITIONS.map((weather, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedWeather(idx)}
-                        className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
-                          selectedWeather === idx
-                            ? 'border-[#20B29A] bg-[#20B29A]/5'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <weather.icon className={`w-6 h-6 ${selectedWeather === idx ? 'text-[#20B29A]' : 'text-gray-500'}`} />
-                        <div className="text-center">
-                          <p className="text-xs font-medium text-gray-900">{weather.label}</p>
-                          <p className="text-[10px] text-gray-500">{weather.temp}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <hr className="border-gray-100 mb-8" />
-
-                {/* Dịp sự kiện */}
-                <div className="mb-8">
-                  <h2 className="text-base font-semibold text-gray-900 mb-4">Dịp sự kiện</h2>
-
-                  <div className="space-y-2">
-                    {['Đi làm', 'Đi chơi', 'Dự tiệc', 'Du lịch', 'Thể thao'].map((occasion) => (
-                      <button
-                        key={occasion}
-                        onClick={() => setSelectedOccasion(occasion)}
-                        className={`w-full px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-all ${
-                          selectedOccasion === occasion
-                            ? 'bg-[#20B29A] text-white shadow-sm'
-                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        {occasion}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <hr className="border-gray-100 mb-8" />
-
-                {/* Phong cách yêu thích */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-base font-semibold text-gray-900">Phong cách yêu thích</h2>
-                    <button className="text-xs font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                      <Settings2 className="w-3.5 h-3.5" />
-                      Tùy chỉnh
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {['Hiện đại', 'Cổ điển', 'Tối giản', 'Năng động', 'Sang trọng'].map((style) => (
-                      <button
-                        key={style}
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-full transition-colors"
-                      >
-                        {style}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </>
             )}
           </div>
@@ -3231,6 +3113,7 @@ export function UseAIPage() {
         </div>
       </div>
     )}
-  </div>
+      </div>
+    </div>
   );
 }

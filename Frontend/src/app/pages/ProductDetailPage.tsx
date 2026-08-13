@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useParams, Link } from "react-router";
 import {
   Star,
-  Heart,
   Share2,
   ShoppingBag,
   Wand2,
@@ -86,7 +85,6 @@ export function ProductDetailPage() {
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -411,18 +409,6 @@ export function ProductDetailPage() {
                   alt={product.name}
                   className="h-full w-full object-contain"
                 />
-                <button
-                  onClick={() => setIsWishlisted(!isWishlisted)}
-                  className="absolute top-4 right-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-50 transition-colors"
-                >
-                  <Heart
-                    className={`w-5 h-5 ${
-                      isWishlisted
-                        ? "fill-red-500 text-red-500"
-                        : "text-gray-600"
-                    }`}
-                  />
-                </button>
               </div>
             </div>
 
