@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import type { UserRole } from "../types";
+import { Eye, EyeOff } from "lucide-react";
 
 function getRoleDashboardPath(role: UserRole) {
   if (role === "admin") return "/admin";
@@ -21,6 +22,7 @@ export function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const redirectTo =
@@ -115,14 +117,26 @@ export function LoginPage() {
                   Quên mật khẩu?
                 </Link>
               </div>
+              <div className="relative">
               <Input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="pr-11"
                 required
               />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black"
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
 
             <Button type="submit" className="w-full" size="lg" disabled={loading}>

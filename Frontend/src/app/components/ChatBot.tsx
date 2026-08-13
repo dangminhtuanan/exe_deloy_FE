@@ -122,7 +122,7 @@ export function ChatBot() {
   return (
     <>
       <motion.div
-        className="fixed bottom-6 right-6 z-[9999]"
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[9999] sm:bottom-6 sm:right-6"
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 260, damping: 20 }}
@@ -143,7 +143,7 @@ export function ChatBot() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed bottom-24 right-6 z-[9998] w-[380px] max-w-[calc(100vw-3rem)] h-[600px] max-h-[calc(100vh-8rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
+            className="fixed inset-x-3 bottom-20 z-[9998] flex h-[min(600px,calc(100dvh-6rem))] min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-24 sm:right-6 sm:w-[380px]"
           >
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 flex items-center gap-3">
               <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center">

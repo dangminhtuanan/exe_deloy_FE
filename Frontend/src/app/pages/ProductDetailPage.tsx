@@ -399,7 +399,7 @@ export function ProductDetailPage() {
                     <img
                       src={img || "/favicon.svg"}
                       alt={`${product.name} thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      className="h-full w-full object-contain"
                     />
                   </button>
                 ))}
@@ -409,7 +409,7 @@ export function ProductDetailPage() {
                 <img
                   src={images[selectedImage] || "/favicon.svg"}
                   alt={product.name}
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-contain"
                 />
                 <button
                   onClick={() => setIsWishlisted(!isWishlisted)}

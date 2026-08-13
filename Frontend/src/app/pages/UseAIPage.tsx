@@ -1951,7 +1951,7 @@ export function UseAIPage() {
   })();
 
   return (
-    <div className="flex h-screen bg-[#F9F9FB] font-sans text-sm overflow-hidden flex-col md:flex-row">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#F9F9FB] font-sans text-sm md:flex-row">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 shrink-0">
         <div className="font-semibold text-gray-900 flex items-center gap-2">
@@ -2042,7 +2042,7 @@ export function UseAIPage() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain md:h-full md:flex-row md:overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileMenuOpen(false)} />
@@ -2788,7 +2788,7 @@ export function UseAIPage() {
 
       {/* Main Preview Area */}
       {mainMode === 0 ? (
-        <div className="w-full md:flex-1 flex items-center justify-center p-4 md:p-8 bg-[#F9F9FB] relative min-h-[500px] md:h-full">
+        <div className="relative flex min-h-[500px] w-full shrink-0 items-center justify-start bg-[#F9F9FB] p-4 md:h-full md:min-h-0 md:flex-1 md:shrink md:justify-center md:p-8">
           {!generatedResult ? (
             <div className="bg-white rounded-2xl shadow-[0_4px_40px_-12px_rgba(0,0,0,0.08)] p-6 md:p-10 w-full max-w-[800px] flex flex-col md:flex-row items-center gap-8 md:gap-10">
               {/* Illustration Side */}
@@ -2919,7 +2919,7 @@ export function UseAIPage() {
           )}
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#F9F9FB]">
+        <div className="w-full shrink-0 overflow-visible bg-[#F9F9FB] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:min-h-0 md:flex-1 md:shrink md:overflow-y-auto md:p-6">
           {!stylingResult ? (
             <div className="max-w-[1200px] mx-auto">
               {/* Header */}
