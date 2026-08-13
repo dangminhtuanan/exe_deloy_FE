@@ -16,7 +16,7 @@ export function Hero({ imageUrl: _imageUrl }: HeroProps) {
           ))}
         </h1>
         <div className="relative z-10 mt-7 md:mt-10">
-          <h2 className="text-lg font-extrabold tracking-tight text-slate-900 md:text-2xl">Elevate Your Style. Define You.</h2>
+          <h2 className="text-lg font-extrabold tracking-tight text-slate-900 md:text-2xl">Nâng tầm phong cách. Khẳng định chất riêng.</h2>
           <p className="mt-1.5 text-xs text-slate-500 md:text-sm">Khám phá những xu hướng thời trang mới nhất</p>
         </div>
       </div>

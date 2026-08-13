@@ -452,6 +452,8 @@ export interface RevenueReportResponse extends MessageResponse {
   };
   summary: {
     totalRevenue: number;
+    orderRevenue: number;
+    aiPackageRevenue: number;
     subtotal: number;
     shippingFee: number;
     orderCount: number;
@@ -469,7 +471,7 @@ export interface RevenueReportResponse extends MessageResponse {
     orderCount: number;
   }>;
   revenueByPaymentStatus: Array<{
-    paymentStatus: Order["paymentStatus"];
+    paymentStatus: PaymentStatus;
     totalAmount: number;
     orderCount: number;
   }>;
@@ -1179,6 +1181,39 @@ export const ordersApi = {
       method: "PATCH",
       auth: true,
     });
+  },
+};
+
+export type IssueReportStatus = "new" | "in_progress" | "resolved" | "rejected";
+export interface IssueReport {
+  _id: string;
+  user?: string | { _id: string; username?: string; email?: string; phone?: string };
+  subject: string;
+  description: string;
+  status: IssueReportStatus;
+  adminNote?: string;
+  resolvedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface IssueReportsResponse extends MessageResponse {
+  reports: IssueReport[];
+  pagination?: Pagination;
+}
+
+export const issueReportsApi = {
+  create(payload: { subject: string; description: string }) {
+    return request<MessageResponse & { report: IssueReport }>("/issue-reports", { method: "POST", auth: true, body: payload });
+  },
+  getMy(params: { page?: number; limit?: number } = {}) {
+    return request<IssueReportsResponse>("/issue-reports/my", { auth: true, params });
+  },
+  getAll(params: { status?: IssueReportStatus; page?: number; limit?: number } = {}) {
+    return request<IssueReportsResponse>("/issue-reports/admin", { auth: true, params });
+  },
+  update(id: string, payload: { status: IssueReportStatus; adminNote?: string }) {
+    return request<MessageResponse & { report: IssueReport }>(`/issue-reports/${id}`, { method: "PATCH", auth: true, body: payload });
   },
 };
 

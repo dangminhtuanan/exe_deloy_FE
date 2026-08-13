@@ -14,7 +14,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
-import { aiPackageApi, getErrorMessage, ordersApi, profileApi, resolveAssetUrl } from "../lib/api";
+import { aiPackageApi, getErrorMessage, issueReportsApi, ordersApi, profileApi, resolveAssetUrl, type IssueReport } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 import type { Order, UserRole } from "../types";
@@ -83,6 +83,10 @@ export function ProfilePage() {
   const [isAiBalanceLoading, setIsAiBalanceLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(true);
+  const [issueReports, setIssueReports] = useState<IssueReport[]>([]);
+  const [isReportsLoading, setIsReportsLoading] = useState(true);
+  const [isSendingReport, setIsSendingReport] = useState(false);
+  const [reportForm, setReportForm] = useState({ subject: "", description: "" });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isSendingPasswordOtp, setIsSendingPasswordOtp] = useState(false);
@@ -101,6 +105,33 @@ export function ProfilePage() {
       toast.error(getErrorMessage(error));
     } finally {
       setIsOrdersLoading(false);
+    }
+  };
+
+  const loadIssueReports = async () => {
+    setIsReportsLoading(true);
+    try {
+      const response = await issueReportsApi.getMy({ limit: 30 });
+      setIssueReports(response.reports);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsReportsLoading(false);
+    }
+  };
+
+  const handleIssueReportSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setIsSendingReport(true);
+    try {
+      await issueReportsApi.create({ subject: reportForm.subject.trim(), description: reportForm.description.trim() });
+      setReportForm({ subject: "", description: "" });
+      toast.success("Đã gửi báo cáo đến quản trị viên");
+      await loadIssueReports();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsSendingReport(false);
     }
   };
 
@@ -146,6 +177,7 @@ export function ProfilePage() {
 
   useEffect(() => {
     void loadOrders();
+    void loadIssueReports();
   }, []);
 
   useEffect(() => {
@@ -398,9 +430,10 @@ export function ProfilePage() {
 
           <div className="flex-1">
             <Tabs defaultValue="profile" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-5">
                 <TabsTrigger value="profile">Hồ sơ</TabsTrigger>
                 <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
+                <TabsTrigger value="issues">Báo cáo sự cố</TabsTrigger>
                 <TabsTrigger value="password">Mật khẩu</TabsTrigger>
                 <TabsTrigger value="email">Đổi email</TabsTrigger>
               </TabsList>
@@ -476,6 +509,54 @@ export function ProfilePage() {
                     )}
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="issues">
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,420px)_1fr]">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Báo cáo sự cố</CardTitle>
+                      <CardDescription>Mô tả vấn đề bạn gặp phải. Quản trị viên sẽ tiếp nhận và phản hồi tại đây.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form className="space-y-4" onSubmit={handleIssueReportSubmit}>
+                        <div className="space-y-2">
+                          <Label htmlFor="issue-subject">Tiêu đề</Label>
+                          <Input id="issue-subject" maxLength={120} required value={reportForm.subject} onChange={(event) => setReportForm((current) => ({ ...current, subject: event.target.value }))} placeholder="Ví dụ: Không thể thanh toán đơn hàng" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="issue-description">Nội dung sự cố</Label>
+                          <Textarea id="issue-description" maxLength={3000} required value={reportForm.description} onChange={(event) => setReportForm((current) => ({ ...current, description: event.target.value }))} placeholder="Mô tả các bước đã thực hiện, lỗi hiển thị và thời điểm xảy ra..." className="min-h-36" />
+                          <p className="text-right text-xs text-gray-400">{reportForm.description.length}/3000</p>
+                        </div>
+                        <Button type="submit" disabled={isSendingReport} className="w-full bg-[#3977ed] text-white hover:bg-[#2868db]">
+                          {isSendingReport ? "Đang gửi..." : "Gửi báo cáo"}
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex-row items-start justify-between gap-4">
+                      <div><CardTitle>Báo cáo đã gửi</CardTitle><CardDescription>Theo dõi tiến độ xử lý từ quản trị viên.</CardDescription></div>
+                      <Button type="button" variant="outline" size="sm" onClick={() => void loadIssueReports()} disabled={isReportsLoading}>Làm mới</Button>
+                    </CardHeader>
+                    <CardContent>
+                      {isReportsLoading ? <p className="py-8 text-center text-sm text-gray-500">Đang tải...</p> : issueReports.length === 0 ? <p className="rounded-lg border border-dashed py-8 text-center text-sm text-gray-500">Bạn chưa gửi báo cáo nào.</p> : (
+                        <div className="space-y-3">
+                          {issueReports.map((report) => {
+                            const labels = { new: "Mới", in_progress: "Đang xử lý", resolved: "Đã giải quyết", rejected: "Từ chối" };
+                            return <article key={report._id} className="rounded-xl border p-4">
+                              <div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold text-gray-900">{report.subject}</h3><p className="mt-1 text-xs text-gray-500">{formatDate(report.createdAt)}</p></div><Badge variant="secondary">{labels[report.status]}</Badge></div>
+                              <p className="mt-3 whitespace-pre-wrap break-words text-sm text-gray-700">{report.description}</p>
+                              {report.adminNote && <div className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-900"><p className="mb-1 font-semibold">Phản hồi từ quản trị viên</p><p className="whitespace-pre-wrap">{report.adminNote}</p></div>}
+                            </article>;
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
 
               <TabsContent value="profile">

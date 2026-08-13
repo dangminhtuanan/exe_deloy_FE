@@ -3,8 +3,10 @@ import { AICreditManagementContent } from "./AICreditManagementPage";
 import { AdminCategoryManagementContent } from "./AdminCategoryManagementContent";
 import { AdminAILogsContent } from "./AdminAILogsContent";
 import { AdminReviewManagementContent } from "./AdminReviewManagementContent";
+import { AdminIssueReportsContent } from "./AdminIssueReportsContent";
 import { AdminShippingAdvancedContent } from "./AdminShippingAdvancedContent";
 import {
+  AlertTriangle,
   BadgeCheck,
   Boxes,
   ClipboardList,
@@ -29,6 +31,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
   Line,
   LineChart,
@@ -84,7 +87,7 @@ import {
 import type { AccessLogItem, Category, Order, Payment, PaymentStatus, Pagination, Product, ShippingRecord, ShippingStatus, UserProfile, UserRole, AIPackage } from "../types";
 import type { RevenueReportResponse } from "../lib/api";
 
-type AdminSection = "overview" | "reports" | "users" | "orders" | "payments" | "shipping" | "products" | "categories" | "aiLogs" | "reviews" | "packages" | "credits" | "accessLogs";
+type AdminSection = "overview" | "reports" | "users" | "orders" | "payments" | "shipping" | "products" | "categories" | "aiLogs" | "reviews" | "issues" | "packages" | "credits" | "accessLogs";
 type AdminOrder = Order & { user?: Pick<UserProfile, "_id" | "username" | "email" | "phone"> };
 
 interface UserFormData {
@@ -230,6 +233,7 @@ const sections = [
   { id: "categories", label: "Quản lý danh mục", icon: Boxes },
   { id: "aiLogs", label: "Nhật ký AI", icon: Sparkles },
   { id: "reviews", label: "Quản lý review", icon: BadgeCheck },
+  { id: "issues", label: "Báo cáo sự cố", icon: AlertTriangle },
 ] satisfies Array<{ id: AdminSection; label: string; icon: typeof LayoutDashboard }>;
 
 function money(value?: number) {
@@ -548,9 +552,10 @@ export function AdminDashboardPage() {
   }, [revenueRange, revenueGroupBy]);
 
   const stats = useMemo(() => {
-    const revenue = orders
-      .filter((item) => ["paid", "refunded"].includes(item.paymentStatus))
-      .reduce((total, item) => total + item.totalAmount, 0);
+    const paidPaymentRevenue = payments
+      .filter((item) => item.status === "PAID")
+      .reduce((total, item) => total + item.amount, 0);
+    const reportedRevenue = revenueReport?.summary.totalRevenue ?? 0;
 
     return {
       users: usersPagination?.total ?? users.length,
@@ -563,9 +568,46 @@ export function AdminDashboardPage() {
       activeShippings: shippings.filter((item) => !["delivered", "failed", "returned", "cancelled"].includes(item.shippingStatus)).length,
       products: productsPagination?.total ?? products.length,
       lowStock: products.filter((item) => (item.stock || 0) <= 5).length,
-      revenue: revenueReport?.summary.totalRevenue ?? revenue,
+      revenue: Math.max(reportedRevenue, paidPaymentRevenue),
     };
   }, [orders, payments, products, revenueReport, shippings, users]);
+
+  const displayedRevenueReport = useMemo(() => {
+    if (!revenueReport) return null;
+    const paid = payments.filter((item) => item.status === "PAID");
+    const paidTotal = paid.reduce((sum, item) => sum + item.amount, 0);
+    if (revenueReport.summary.totalRevenue > 0 || paidTotal === 0) return revenueReport;
+
+    const orderRevenue = paid.filter((item) => item.targetType === "ORDER").reduce((sum, item) => sum + item.amount, 0);
+    const aiPackageRevenue = paid.filter((item) => item.targetType === "AI_PACKAGE").reduce((sum, item) => sum + item.amount, 0);
+    const timelineMap = new Map<string, { period: string; revenue: number; orderCount: number }>();
+    paid.forEach((item) => {
+      const date = new Date(item.paidAt || item.createdAt || Date.now());
+      const period = revenueGroupBy === "year"
+        ? String(date.getFullYear())
+        : revenueGroupBy === "month"
+          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+          : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const current = timelineMap.get(period) || { period, revenue: 0, orderCount: 0 };
+      current.revenue += item.amount;
+      current.orderCount += 1;
+      timelineMap.set(period, current);
+    });
+
+    return {
+      ...revenueReport,
+      summary: {
+        ...revenueReport.summary,
+        totalRevenue: paidTotal,
+        orderRevenue,
+        aiPackageRevenue,
+        orderCount: paid.length,
+        averageOrderValue: paid.length ? paidTotal / paid.length : 0,
+      },
+      timeline: Array.from(timelineMap.values()).sort((a, b) => a.period.localeCompare(b.period)),
+      revenueByPaymentStatus: [{ paymentStatus: "PAID" as const, totalAmount: paidTotal, orderCount: paid.length }],
+    };
+  }, [payments, revenueGroupBy, revenueReport]);
 
   const filteredUsers = users.filter((item) => {
     const keyword = userSearch.trim().toLowerCase();
@@ -992,10 +1034,10 @@ export function AdminDashboardPage() {
                 description="Tổng lượt truy cập website"
                 icon={Eye}
               />
-              <StatCard title="Thanh toán" value={stats.payments} description="0 đã thanh toán" icon={CreditCard} />
-              <StatCard title="Giao hàng" value={stats.shippings} description="0 đang xử lý" icon={Truck} />
+              <StatCard title="Thanh toán" value={stats.payments} description={`${stats.paidPayments} đã thanh toán`} icon={CreditCard} />
+              <StatCard title="Giao hàng" value={stats.shippings} description={`${stats.activeShippings} đang xử lý`} icon={Truck} />
               <StatCard title="Sản phẩm" value={stats.products} description={`${stats.lowStock} sản phẩm sắp hết`} icon={Boxes} />
-              <StatCard title="Doanh thu đã ghi nhận" value={money(stats.revenue)} description="Dữ liệu báo cáo mẫu" icon={BadgeCheck} />
+              <StatCard title="Doanh thu đã ghi nhận" value={money(stats.revenue)} description="Từ các giao dịch đã thanh toán" icon={BadgeCheck} />
             </div>
 
             {activeSection === "overview" && (
@@ -1007,8 +1049,8 @@ export function AdminDashboardPage() {
             {activeSection === "reports" && (
               <div className="space-y-4">
                 <RevenueReportPanel
-                  report={null}
-                  loading={false}
+                  report={displayedRevenueReport}
+                  loading={loadingRevenue}
                   range={revenueRange}
                   groupBy={revenueGroupBy}
                   onRangeChange={setRevenueRange}
@@ -1017,10 +1059,10 @@ export function AdminDashboardPage() {
                 />
                 <div className="grid gap-4 xl:grid-cols-2">
                   <RecentOrders
-                    orders={[]}
-                    loading={false}
+                    orders={displayedRevenueReport?.recentOrders || []}
+                    loading={loadingRevenue}
                   />
-                  <RevenueStatusBreakdown report={null} loading={false} />
+                  <RevenueStatusBreakdown report={displayedRevenueReport} loading={loadingRevenue} />
                 </div>
               </div>
             )}
@@ -1534,6 +1576,7 @@ export function AdminDashboardPage() {
             {activeSection === "categories" && <AdminCategoryManagementContent />}
             {activeSection === "aiLogs" && <AdminAILogsContent />}
             {activeSection === "reviews" && <AdminReviewManagementContent />}
+            {activeSection === "issues" && <AdminIssueReportsContent />}
             {activeSection === "shipping" && <AdminShippingAdvancedContent />}
           </div>
         </main>
@@ -1598,14 +1641,14 @@ function StatCard({
   icon: typeof Users;
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-        <CardDescription>{title}</CardDescription>
+    <Card className="h-full">
+      <CardHeader className="flex min-h-[68px] flex-row items-start justify-between space-y-0 pb-2">
+        <CardDescription className="max-w-[8rem] leading-5">{title}</CardDescription>
         <Icon className="h-4 w-4 text-slate-500" />
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex min-h-[112px] flex-col justify-end">
         <CardTitle className="text-2xl">{value}</CardTitle>
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
+        <p className="mt-1 min-h-10 text-sm leading-5 text-slate-500">{description}</p>
       </CardContent>
     </Card>
   );
@@ -1642,7 +1685,7 @@ function RevenueReportPanel({
             <div>
               <CardTitle>Báo cáo doanh thu</CardTitle>
               <CardDescription>
-                Dữ liệu từ API /reports/revenue dành cho admin và manager
+                Tổng hợp từ các giao dịch thanh toán thành công
               </CardDescription>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -1674,15 +1717,25 @@ function RevenueReportPanel({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <MiniMetric
               label="Doanh thu"
               value={money(report?.summary.totalRevenue)}
               loading={loading}
             />
             <MiniMetric
-              label="Số đơn đã ghi nhận"
+              label="Giao dịch thành công"
               value={report?.summary.orderCount ?? 0}
+              loading={loading}
+            />
+            <MiniMetric
+              label="Doanh thu quần áo"
+              value={money(report?.summary.orderRevenue)}
+              loading={loading}
+            />
+            <MiniMetric
+              label="Doanh thu gói AI"
+              value={money(report?.summary.aiPackageRevenue)}
               loading={loading}
             />
             <MiniMetric
@@ -1691,7 +1744,7 @@ function RevenueReportPanel({
               loading={loading}
             />
             <MiniMetric
-              label="Giá trị đơn TB"
+              label="Giá trị giao dịch TB"
               value={money(report?.summary.averageOrderValue)}
               loading={loading}
             />
@@ -1704,7 +1757,7 @@ function RevenueReportPanel({
             </div>
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-sm bg-blue-600" />
-              Số đơn
+              Số giao dịch
             </div>
           </div>
 
@@ -1715,7 +1768,7 @@ function RevenueReportPanel({
               <ChartEmpty text="Chưa có dữ liệu doanh thu trong khoảng đã chọn" />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={timeline} margin={{ top: 10, right: 18, bottom: 0, left: 0 }}>
+                <ComposedChart data={timeline} margin={{ top: 10, right: 18, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="period" tickLine={false} axisLine={false} fontSize={12} />
                   <YAxis
@@ -1738,24 +1791,22 @@ function RevenueReportPanel({
                   <Tooltip
                     formatter={(value, name) => [
                       name === "revenue" ? money(Number(value)) : value,
-                      name === "revenue" ? "Doanh thu" : "Số đơn",
+                      name === "revenue" ? "Doanh thu" : "Số giao dịch",
                     ]}
                     labelFormatter={(label) => `Kỳ: ${label}`}
                   />
                   <Legend
                     verticalAlign="top"
                     height={28}
-                    formatter={(value) => (value === "revenue" ? "Doanh thu" : "Số đơn")}
+                    formatter={(value) => (value === "revenue" ? "Doanh thu" : "Số giao dịch")}
                   />
-                  <Line
+                  <Bar
                     yAxisId="revenue"
-                    type="monotone"
                     dataKey="revenue"
                     name="revenue"
-                    stroke="#0f172a"
-                    strokeWidth={3}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
+                    fill="#0f172a"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={72}
                   />
                   <Line
                     yAxisId="orders"
@@ -1764,9 +1815,9 @@ function RevenueReportPanel({
                     name="orderCount"
                     stroke="#2563eb"
                     strokeWidth={2}
-                    dot={{ r: 2 }}
+                    dot={{ r: 5, fill: "#2563eb", strokeWidth: 2, stroke: "#fff" }}
                   />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </div>
@@ -1838,7 +1889,7 @@ function RevenueReportPanel({
                 <div key={item.paymentStatus} className="rounded-md border p-3">
                   <div className="flex items-center justify-between gap-3">
                     <Badge variant={item.paymentStatus === "paid" ? "default" : "secondary"}>
-                      {orderPaymentStatusLabels[item.paymentStatus]}
+                      {paymentStatusLabels[item.paymentStatus]}
                     </Badge>
                     <span className="text-sm font-semibold">{item.orderCount} đơn</span>
                   </div>
@@ -1934,7 +1985,7 @@ function PaymentStatusPie({
                   innerRadius={48}
                   paddingAngle={3}
                   label={({ paymentStatus, percent }) =>
-                    `${orderPaymentStatusLabels[paymentStatus]} ${(percent * 100).toFixed(0)}%`
+                    `${paymentStatusLabels[paymentStatus as PaymentStatus]} ${(percent * 100).toFixed(0)}%`
                   }
                 >
                   {data.map((item, index) => (
