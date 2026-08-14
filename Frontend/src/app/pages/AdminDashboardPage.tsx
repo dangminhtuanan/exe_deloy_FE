@@ -217,7 +217,7 @@ const revenueRangeOptions = [
   { value: "365", label: "12 tháng" },
 ];
 
-const chartColors = ["#0f172a", "#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed"];
+const chartColors = ["#3977ed", "#16a34a", "#f59e0b", "#e11d48", "#8b5cf6", "#06b6d4", "#f97316", "#14b8a6"];
 
 const sections = [
   { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
@@ -261,9 +261,15 @@ function getDateRange(days: string) {
 
   start.setDate(end.getDate() - (Number(days) - 1));
 
+  const formatLocalDate = (date: Date) => [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+
   return {
-    from: start.toISOString().slice(0, 10),
-    to: end.toISOString().slice(0, 10),
+    from: formatLocalDate(start),
+    to: formatLocalDate(end),
   };
 }
 
@@ -528,7 +534,6 @@ export function AdminDashboardPage() {
       loadProducts(),
       loadPackages(1),
       loadAccessLogs(1),
-      loadRevenueReport(),
     ]);
   }, []);
 
@@ -552,62 +557,24 @@ export function AdminDashboardPage() {
   }, [revenueRange, revenueGroupBy]);
 
   const stats = useMemo(() => {
-    const paidPaymentRevenue = payments
-      .filter((item) => item.status === "PAID")
-      .reduce((total, item) => total + item.amount, 0);
-    const reportedRevenue = revenueReport?.summary.totalRevenue ?? 0;
+    const operational = revenueReport?.operationalSummary;
 
     return {
-      users: usersPagination?.total ?? users.length,
-      admins: users.filter((item) => item.role === "admin").length,
-      orders: ordersPagination?.total ?? orders.length,
-      pendingOrders: orders.filter((item) => item.status === "pending").length,
-      payments: paymentsPagination?.total ?? payments.length,
-      paidPayments: payments.filter((item) => item.status === "PAID").length,
-      shippings: shippingsPagination?.total ?? shippings.length,
-      activeShippings: shippings.filter((item) => !["delivered", "failed", "returned", "cancelled"].includes(item.shippingStatus)).length,
-      products: productsPagination?.total ?? products.length,
-      lowStock: products.filter((item) => (item.stock || 0) <= 5).length,
-      revenue: Math.max(reportedRevenue, paidPaymentRevenue),
+      users: operational?.users ?? usersPagination?.total ?? 0,
+      admins: operational?.admins ?? 0,
+      orders: operational?.orders ?? ordersPagination?.total ?? 0,
+      pendingOrders: operational?.pendingOrders ?? 0,
+      payments: operational?.payments ?? paymentsPagination?.total ?? 0,
+      paidPayments: operational?.paidPayments ?? 0,
+      shippings: operational?.shippings ?? shippingsPagination?.total ?? 0,
+      activeShippings: operational?.activeShippings ?? 0,
+      products: operational?.products ?? productsPagination?.total ?? 0,
+      lowStock: operational?.lowStock ?? 0,
+      revenue: revenueReport?.summary.totalRevenue ?? 0,
     };
-  }, [orders, payments, products, revenueReport, shippings, users]);
+  }, [ordersPagination, paymentsPagination, productsPagination, revenueReport, shippingsPagination, usersPagination]);
 
-  const displayedRevenueReport = useMemo(() => {
-    if (!revenueReport) return null;
-    const paid = payments.filter((item) => item.status === "PAID");
-    const paidTotal = paid.reduce((sum, item) => sum + item.amount, 0);
-    if (revenueReport.summary.totalRevenue > 0 || paidTotal === 0) return revenueReport;
-
-    const orderRevenue = paid.filter((item) => item.targetType === "ORDER").reduce((sum, item) => sum + item.amount, 0);
-    const aiPackageRevenue = paid.filter((item) => item.targetType === "AI_PACKAGE").reduce((sum, item) => sum + item.amount, 0);
-    const timelineMap = new Map<string, { period: string; revenue: number; orderCount: number }>();
-    paid.forEach((item) => {
-      const date = new Date(item.paidAt || item.createdAt || Date.now());
-      const period = revenueGroupBy === "year"
-        ? String(date.getFullYear())
-        : revenueGroupBy === "month"
-          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
-          : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-      const current = timelineMap.get(period) || { period, revenue: 0, orderCount: 0 };
-      current.revenue += item.amount;
-      current.orderCount += 1;
-      timelineMap.set(period, current);
-    });
-
-    return {
-      ...revenueReport,
-      summary: {
-        ...revenueReport.summary,
-        totalRevenue: paidTotal,
-        orderRevenue,
-        aiPackageRevenue,
-        orderCount: paid.length,
-        averageOrderValue: paid.length ? paidTotal / paid.length : 0,
-      },
-      timeline: Array.from(timelineMap.values()).sort((a, b) => a.period.localeCompare(b.period)),
-      revenueByPaymentStatus: [{ paymentStatus: "PAID" as const, totalAmount: paidTotal, orderCount: paid.length }],
-    };
-  }, [payments, revenueGroupBy, revenueReport]);
+  const displayedRevenueReport = revenueReport;
 
   const filteredUsers = users.filter((item) => {
     const keyword = userSearch.trim().toLowerCase();
@@ -1037,12 +1004,12 @@ export function AdminDashboardPage() {
               <StatCard title="Thanh toán" value={stats.payments} description={`${stats.paidPayments} đã thanh toán`} icon={CreditCard} />
               <StatCard title="Giao hàng" value={stats.shippings} description={`${stats.activeShippings} đang xử lý`} icon={Truck} />
               <StatCard title="Sản phẩm" value={stats.products} description={`${stats.lowStock} sản phẩm sắp hết`} icon={Boxes} />
-              <StatCard title="Doanh thu đã ghi nhận" value={money(stats.revenue)} description="Từ các giao dịch đã thanh toán" icon={BadgeCheck} />
+              <StatCard title={`Doanh thu ${revenueRangeOptions.find((option) => option.value === revenueRange)?.label || "đã chọn"}`} value={money(stats.revenue)} description="Theo thời điểm thanh toán thực tế" icon={BadgeCheck} />
             </div>
 
             {activeSection === "overview" && (
               <div className="grid gap-4">
-                <LowStockProducts products={products.filter((item) => (item.stock || 0) <= 5).slice(0, 6)} loading={loadingProducts} />
+                <LowStockProducts products={revenueReport?.lowStockProducts || []} loading={loadingRevenue} />
               </div>
             )}
 
@@ -1717,15 +1684,15 @@ function RevenueReportPanel({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <MiniMetric
-              label="Doanh thu"
+              label="Tổng doanh thu"
               value={money(report?.summary.totalRevenue)}
               loading={loading}
             />
             <MiniMetric
               label="Giao dịch thành công"
-              value={report?.summary.orderCount ?? 0}
+              value={report?.summary.paymentCount ?? 0}
               loading={loading}
             />
             <MiniMetric
@@ -1739,12 +1706,22 @@ function RevenueReportPanel({
               loading={loading}
             />
             <MiniMetric
+              label="Đơn hàng đã thanh toán"
+              value={report?.summary.orderCount ?? 0}
+              loading={loading}
+            />
+            <MiniMetric
+              label="Lượt mua gói AI"
+              value={report?.summary.aiPackageTransactionCount ?? 0}
+              loading={loading}
+            />
+            <MiniMetric
               label="Sản phẩm đã bán"
               value={report?.summary.itemCount ?? 0}
               loading={loading}
             />
             <MiniMetric
-              label="Giá trị giao dịch TB"
+              label="Giá trị đơn hàng TB"
               value={money(report?.summary.averageOrderValue)}
               loading={loading}
             />
@@ -1752,11 +1729,15 @@ function RevenueReportPanel({
 
           <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-slate-600">
             <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-sm bg-slate-950" />
-              Doanh thu
+              <span className="h-3 w-3 rounded-sm bg-[#3977ed]" />
+              Doanh thu quần áo
             </div>
             <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-sm bg-blue-600" />
+              <span className="h-3 w-3 rounded-sm bg-[#f59e0b]" />
+              Doanh thu gói AI
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-full bg-[#8b5cf6]" />
               Số giao dịch
             </div>
           </div>
@@ -1790,32 +1771,34 @@ function RevenueReportPanel({
                   />
                   <Tooltip
                     formatter={(value, name) => [
-                      name === "revenue" ? money(Number(value)) : value,
-                      name === "revenue" ? "Doanh thu" : "Số giao dịch",
+                      name === "transactionCount" ? value : money(Number(value)),
+                      name === "orderRevenue" ? "Doanh thu quần áo" : name === "aiPackageRevenue" ? "Doanh thu gói AI" : "Số giao dịch",
                     ]}
                     labelFormatter={(label) => `Kỳ: ${label}`}
                   />
                   <Legend
                     verticalAlign="top"
                     height={28}
-                    formatter={(value) => (value === "revenue" ? "Doanh thu" : "Số giao dịch")}
+                    formatter={(value) => value === "orderRevenue" ? "Doanh thu quần áo" : value === "aiPackageRevenue" ? "Doanh thu gói AI" : "Số giao dịch"}
                   />
                   <Bar
                     yAxisId="revenue"
-                    dataKey="revenue"
-                    name="revenue"
-                    fill="#0f172a"
-                    radius={[6, 6, 0, 0]}
+                    dataKey="orderRevenue"
+                    name="orderRevenue"
+                    stackId="revenue"
+                    fill="#3977ed"
+                    radius={[0, 0, 0, 0]}
                     maxBarSize={72}
                   />
+                  <Bar yAxisId="revenue" dataKey="aiPackageRevenue" name="aiPackageRevenue" stackId="revenue" fill="#f59e0b" radius={[6, 6, 0, 0]} maxBarSize={72} />
                   <Line
                     yAxisId="orders"
                     type="monotone"
-                    dataKey="orderCount"
-                    name="orderCount"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    dot={{ r: 5, fill: "#2563eb", strokeWidth: 2, stroke: "#fff" }}
+                    dataKey="transactionCount"
+                    name="transactionCount"
+                    stroke="#8b5cf6"
+                    strokeWidth={3}
+                    dot={{ r: 5, fill: "#8b5cf6", strokeWidth: 2, stroke: "#fff" }}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -1877,7 +1860,7 @@ function RevenueReportPanel({
         <Card>
           <CardHeader>
             <CardTitle>Cơ cấu thanh toán</CardTitle>
-            <CardDescription>Đếm đơn theo paymentStatus</CardDescription>
+            <CardDescription>Số giao dịch và giá trị theo trạng thái thanh toán</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
@@ -1888,10 +1871,10 @@ function RevenueReportPanel({
               report.revenueByPaymentStatus.map((item) => (
                 <div key={item.paymentStatus} className="rounded-md border p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <Badge variant={item.paymentStatus === "paid" ? "default" : "secondary"}>
+                    <Badge variant={item.paymentStatus === "PAID" ? "default" : "secondary"}>
                       {paymentStatusLabels[item.paymentStatus]}
                     </Badge>
-                    <span className="text-sm font-semibold">{item.orderCount} đơn</span>
+                    <span className="text-sm font-semibold">{item.orderCount} giao dịch</span>
                   </div>
                   <p className="mt-2 text-sm text-slate-500">{money(item.totalAmount)}</p>
                 </div>
@@ -1919,9 +1902,9 @@ function MiniMetric({
   loading: boolean;
 }) {
   return (
-    <div className="rounded-md border bg-slate-50 p-3">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 text-slate-950 shadow-sm">
       <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-2 text-xl font-bold text-slate-950">
+      <p className="mt-2 text-xl font-bold text-black">
         {loading ? "..." : value}
       </p>
     </div>
@@ -1957,7 +1940,7 @@ function PaymentStatusPie({
     <Card>
       <CardHeader>
         <CardTitle>Sơ đồ tròn thanh toán</CardTitle>
-        <CardDescription>Tỷ trọng số đơn theo paymentStatus</CardDescription>
+        <CardDescription>Tỷ trọng số giao dịch theo trạng thái thanh toán</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-80">
@@ -1970,7 +1953,7 @@ function PaymentStatusPie({
               <PieChart>
                 <Tooltip
                   formatter={(value, name, item) => [
-                    `${value} đơn - ${money(item.payload.totalAmount)}`,
+                    `${value} giao dịch - ${money(item.payload.totalAmount)}`,
                     item.payload.paymentStatus,
                   ]}
                 />

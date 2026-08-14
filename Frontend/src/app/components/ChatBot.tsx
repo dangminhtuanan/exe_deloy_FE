@@ -74,6 +74,10 @@ export function ChatBot() {
       const response = await aiApi.chat({
         question,
         limit: 4,
+        history: messages.slice(-10).map((message) => ({
+          role: message.type === "user" ? "user" : "assistant",
+          content: message.content,
+        })),
       });
       const answer = response.answer;
 
@@ -130,7 +134,7 @@ export function ChatBot() {
         <Button
           size="lg"
           onClick={() => setIsOpen((value) => !value)}
-          className="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+          className="h-14 w-14 rounded-full bg-[#3977ed] shadow-lg shadow-blue-200 transition-colors hover:bg-[#2868db]"
         >
           {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
         </Button>
@@ -145,7 +149,7 @@ export function ChatBot() {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="fixed inset-x-3 bottom-20 z-[9998] flex h-[min(600px,calc(100dvh-6rem))] min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-24 sm:right-6 sm:w-[380px]"
           >
-            <div className="flex shrink-0 items-center gap-3 bg-gradient-to-r from-purple-600 to-pink-600 p-4">
+            <div className="flex shrink-0 items-center gap-3 bg-gradient-to-r from-[#3977ed] to-[#5b8ff5] p-4">
               <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
@@ -174,7 +178,7 @@ export function ChatBot() {
                       <div
                         className={`rounded-2xl px-4 py-2 ${
                           message.type === "user"
-                            ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                            ? "bg-[#3977ed] text-white"
                             : "bg-white border border-gray-200"
                         }`}
                       >
@@ -187,7 +191,7 @@ export function ChatBot() {
                             <Link
                               key={product.productId || product.id}
                               to={`/product/${product.id}`}
-                              className="group flex min-w-0 max-w-full gap-3 rounded-xl border border-gray-200 bg-white p-3 transition-all hover:border-purple-300 hover:shadow-md"
+                              className="group flex min-w-0 max-w-full gap-3 rounded-xl border border-gray-200 bg-white p-3 transition-all hover:border-blue-300 hover:shadow-md"
                               onClick={() => setIsOpen(false)}
                             >
                               <img
@@ -197,11 +201,11 @@ export function ChatBot() {
                                 className="w-16 h-16 shrink-0 object-cover rounded-lg bg-gray-100"
                               />
                               <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-medium text-gray-900 truncate group-hover:text-purple-600">
+                                <h4 className="text-sm font-medium text-gray-900 truncate group-hover:text-[#3977ed]">
                                   {product.name}
                                 </h4>
                                 <p className="text-xs text-gray-500">{product.category}</p>
-                                <p className="text-sm font-semibold text-purple-600 mt-1">
+                                <p className="mt-1 text-sm font-semibold text-[#3977ed]">
                                   {product.price.toLocaleString("vi-VN")}đ
                                 </p>
                               </div>
@@ -243,7 +247,7 @@ export function ChatBot() {
                     <button
                       key={action}
                       onClick={() => void sendMessage(action)}
-                      className="px-3 py-1.5 text-xs bg-purple-50 text-purple-600 rounded-full hover:bg-purple-100 transition-colors"
+                      className="rounded-full bg-blue-50 px-3 py-1.5 text-xs text-[#3977ed] transition-colors hover:bg-blue-100"
                     >
                       {action}
                     </button>
@@ -265,14 +269,14 @@ export function ChatBot() {
                     }
                   }}
                   placeholder="Nhập tin nhắn..."
-                  className="flex-1 rounded-full border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+                  className="flex-1 rounded-full border-gray-300 focus-visible:border-[#3977ed] focus-visible:ring-[#3977ed]/20"
                   disabled={isTyping}
                 />
                 <Button
                   onClick={() => void sendMessage()}
                   disabled={!inputValue.trim() || isTyping}
                   size="icon"
-                  className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  className="rounded-full bg-[#3977ed] text-white hover:bg-[#2868db]"
                 >
                   <Send className="h-4 w-4" />
                 </Button>

@@ -456,14 +456,20 @@ export interface RevenueReportResponse extends MessageResponse {
     aiPackageRevenue: number;
     subtotal: number;
     shippingFee: number;
+    paymentCount: number;
     orderCount: number;
+    aiPackageTransactionCount: number;
     itemCount: number;
     averageOrderValue: number;
   };
   timeline: Array<{
     period: string;
     revenue: number;
+    orderRevenue: number;
+    aiPackageRevenue: number;
+    transactionCount: number;
     orderCount: number;
+    aiPackageTransactionCount: number;
   }>;
   revenueByStatus: Array<{
     status: Order["status"];
@@ -485,6 +491,19 @@ export interface RevenueReportResponse extends MessageResponse {
   recentOrders: Array<Order & {
     user?: Pick<UserProfile, "_id" | "username" | "email" | "phone">;
   }>;
+  operationalSummary: {
+    users: number;
+    admins: number;
+    orders: number;
+    pendingOrders: number;
+    payments: number;
+    paidPayments: number;
+    shippings: number;
+    activeShippings: number;
+    products: number;
+    lowStock: number;
+  };
+  lowStockProducts: Product[];
 }
 
 interface AIPackagesResponse extends MessageResponse {
@@ -720,6 +739,10 @@ interface RecommendationParams {
 interface ChatPayload {
   question: string;
   limit?: number;
+  history?: Array<{
+    role: "user" | "assistant";
+    content: string;
+  }>;
 }
 
 interface TryOnPayload {
