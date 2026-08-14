@@ -37,7 +37,7 @@ export function HomePage() {
         const response = await productsApi.getAll({
           category: selectedCategory || undefined,
           page,
-          limit: 20,
+          limit: 18,
           sort: "newest",
           inStock: true,
         });
