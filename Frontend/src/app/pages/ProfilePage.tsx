@@ -756,7 +756,12 @@ function getAiStatusBadgeClass(status: string) {
                       <div>
                         <h4 className="mb-3 font-semibold text-gray-900">1. Thanh toán đơn hàng</h4>
                         <div className="overflow-x-auto rounded-lg border">
-                          <table className="w-full text-left text-sm text-gray-600">
+                          <table className="w-full min-w-[900px] table-fixed text-left text-sm text-gray-600">
+                            <colgroup>
+                              {Array.from({ length: 5 }).map((_, index) => (
+                                <col key={`order-column-${index}`} className="w-1/5" />
+                              ))}
+                            </colgroup>
                             <thead className="border-b bg-gray-50 text-xs uppercase text-gray-700">
                               <tr>
                                 <th className="px-4 py-3">Mã đơn</th>
@@ -800,7 +805,12 @@ function getAiStatusBadgeClass(status: string) {
                           </p>
                         ) : (
                           <div className="overflow-x-auto rounded-lg border">
-                            <table className="w-full text-left text-sm text-gray-600">
+                            <table className="w-full min-w-[900px] table-fixed text-left text-sm text-gray-600">
+                              <colgroup>
+                                {Array.from({ length: 5 }).map((_, index) => (
+                                  <col key={`ai-column-${index}`} className="w-1/5" />
+                                ))}
+                              </colgroup>
                               <thead className="border-b bg-gray-50 text-xs uppercase text-gray-700">
                                 <tr>
                                   <th className="px-4 py-3">Tên gói / Giao dịch</th>
