@@ -10,7 +10,7 @@ export function OrderSuccessPage() {
   const email = state?.email;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
+    <div className="min-h-screen bg-transparent flex items-center justify-center px-4 py-16">
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
           {/* Success Icon */}

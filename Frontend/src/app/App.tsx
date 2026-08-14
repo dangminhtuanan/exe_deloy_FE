@@ -6,11 +6,13 @@ import { AuthProvider } from './contexts/AuthContext';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <RouterProvider router={router} />
-        <Toaster position="bottom-right" richColors closeButton />
-      </CartProvider>
-    </AuthProvider>
+    <div className="app-bubble-surface min-h-screen">
+      <AuthProvider>
+        <CartProvider>
+          <RouterProvider router={router} />
+          <Toaster position="bottom-right" richColors closeButton />
+        </CartProvider>
+      </AuthProvider>
+    </div>
   );
 }

@@ -16,7 +16,7 @@ export function Layout() {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-transparent flex flex-col">
       <Header cartCount={totalItems} />
       <main className="flex-1">
         <Outlet />

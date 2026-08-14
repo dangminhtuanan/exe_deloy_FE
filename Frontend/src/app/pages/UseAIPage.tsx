@@ -1931,7 +1931,7 @@ export function UseAIPage() {
   })();
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#F9F9FB]">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-transparent">
       <Header cartCount={totalItems} />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden font-sans text-sm md:flex-row">
       {/* Mobile Header */}

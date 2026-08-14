@@ -64,6 +64,54 @@
   50% { opacity: 0.9; transform: scaleX(1.04); }
 }
 
+.app-bubble-surface {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(180deg, #edf5ff 0%, #f7faff 58%, #ffffff 100%);
+}
+
+.app-bubble-surface::before,
+.app-bubble-surface::after {
+  position: fixed;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.34);
+  box-shadow:
+    inset -18px -18px 38px rgba(122, 171, 255, 0.18),
+    0 22px 55px rgba(89, 143, 224, 0.14);
+}
+
+.app-bubble-surface::before {
+  top: 14vh;
+  left: -72px;
+  width: 230px;
+  height: 230px;
+}
+
+.app-bubble-surface::after {
+  top: 8vh;
+  right: -54px;
+  width: 190px;
+  height: 190px;
+}
+
+@media (max-width: 767px) {
+  .app-bubble-surface::before {
+    left: -60px;
+    width: 150px;
+    height: 150px;
+  }
+
+  .app-bubble-surface::after {
+    right: -48px;
+    width: 125px;
+    height: 125px;
+  }
+}
+
 .cloud-word {
   position: relative;
   filter: drop-shadow(0 14px 16px rgba(92, 139, 205, 0.2));

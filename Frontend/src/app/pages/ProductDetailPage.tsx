@@ -335,7 +335,7 @@ export function ProductDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-transparent p-8">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8">
           <div className="aspect-[3/4] rounded-2xl bg-gray-100 animate-pulse" />
           <div className="space-y-4">
@@ -350,7 +350,7 @@ export function ProductDetailPage() {
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-transparent flex items-center justify-center px-4">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Không tìm thấy sản phẩm
@@ -364,7 +364,7 @@ export function ProductDetailPage() {
   }
 
   return (
-    <div className="bg-gray-50 pb-16">
+    <div className="bg-transparent pb-16">
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center space-x-2 text-sm text-gray-500">

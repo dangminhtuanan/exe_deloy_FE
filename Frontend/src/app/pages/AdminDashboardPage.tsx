@@ -938,7 +938,7 @@ export function AdminDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950">
+    <div className="min-h-screen bg-transparent text-slate-950">
       <div className="flex min-h-screen">
         <aside className="hidden w-72 shrink-0 border-r bg-white px-4 py-5 lg:block">
           <div className="mb-8 px-3">

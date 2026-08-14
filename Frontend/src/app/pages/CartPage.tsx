@@ -33,7 +33,7 @@ export function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-transparent flex items-center justify-center px-4">
         <div className="text-center max-w-md">
           <div className="inline-flex items-center justify-center w-24 h-24 bg-gray-100 rounded-full mb-6">
             <ShoppingBag className="w-12 h-12 text-gray-400" />
@@ -53,7 +53,7 @@ export function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-transparent py-8 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">

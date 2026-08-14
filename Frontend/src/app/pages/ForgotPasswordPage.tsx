@@ -59,7 +59,7 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-transparent flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
         <Link to="/" className="inline-block mb-8">
           <h1 className="text-3xl font-bold">OUTFIO</h1>

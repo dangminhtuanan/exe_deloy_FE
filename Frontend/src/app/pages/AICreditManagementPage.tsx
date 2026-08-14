@@ -11,9 +11,9 @@ import { Label } from "../components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Textarea } from "../components/ui/textarea";
 import { aiPackageApi, getErrorMessage, usersApi } from "../lib/api";
-import type { AITransaction, UserProfile } from "../types";
+import type { AITransaction, Pagination, UserProfile } from "../types";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 
 function dateTime(value?: string) {
   return value ? new Date(value).toLocaleString("vi-VN") : "--";
@@ -31,20 +31,23 @@ export function AICreditManagementContent() {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState<AITransaction[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [grantOpen, setGrantOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ userId: "", credits: "", reason: "" });
 
-  const loadData = async () => {
+  const loadData = async (targetPage = page) => {
     setLoading(true);
     try {
       const [transactionResponse, userResponse] = await Promise.all([
-        aiPackageApi.getAllTransactions({ page: 1, limit: PAGE_SIZE }),
+        aiPackageApi.getAllTransactions({ page: targetPage, limit: PAGE_SIZE }),
         usersApi.getAll({ page: 1, limit: 200 }),
       ]);
       setTransactions(transactionResponse.transactions);
+      setPagination(transactionResponse.pagination ?? null);
       setUsers(userResponse.users);
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -54,8 +57,8 @@ export function AICreditManagementContent() {
   };
 
   useEffect(() => {
-    void loadData();
-  }, []);
+    void loadData(page);
+  }, [page]);
 
   const filteredTransactions = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -91,7 +94,8 @@ export function AICreditManagementContent() {
       toast.success(`Đã cộng ${result.creditsAdded} credit. Số dư mới: ${result.newBalance}.`);
       setGrantOpen(false);
       setForm({ userId: "", credits: "", reason: "" });
-      await loadData();
+      if (page === 1) await loadData(1);
+      else setPage(1);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -100,7 +104,7 @@ export function AICreditManagementContent() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <main className="min-h-screen bg-transparent p-4 md:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
@@ -113,7 +117,7 @@ export function AICreditManagementContent() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => void loadData()} disabled={loading}><RefreshCcw className="h-4 w-4" /> Làm mới</Button>
+            <Button variant="outline" onClick={() => void loadData(page)} disabled={loading}><RefreshCcw className="h-4 w-4" /> Làm mới</Button>
             <Button onClick={() => setGrantOpen(true)}><UserPlus className="h-4 w-4" /> Cộng credit</Button>
           </div>
         </div>
@@ -135,8 +139,9 @@ export function AICreditManagementContent() {
               <Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Tìm tên, email, gói..." />
             </div>
           </CardHeader>
-          <CardContent className="overflow-x-auto p-0">
-            <Table>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
               <TableHeader><TableRow><TableHead>Người dùng</TableHead><TableHead>Gói AI</TableHead><TableHead>Credit</TableHead><TableHead>Thanh toán</TableHead><TableHead>Trạng thái</TableHead><TableHead>Thời gian</TableHead></TableRow></TableHeader>
               <TableBody>
                 {loading ? <TableRow><TableCell colSpan={6} className="py-10 text-center text-slate-500">Đang tải...</TableCell></TableRow> : filteredTransactions.length === 0 ? <TableRow><TableCell colSpan={6} className="py-10 text-center text-slate-500">Chưa có giao dịch phù hợp.</TableCell></TableRow> : filteredTransactions.map((transaction) => {
@@ -145,7 +150,23 @@ export function AICreditManagementContent() {
                   return <TableRow key={transaction._id}><TableCell><p className="font-medium">{transactionUser?.username || "--"}</p><p className="text-xs text-slate-500">{transactionUser?.email || "--"}</p></TableCell><TableCell>{aiPackage?.name || "Gói đã xóa"}</TableCell><TableCell className="font-semibold">{transaction.credits}</TableCell><TableCell>{money(transaction.amount)}</TableCell><TableCell><Badge variant={statusVariant(transaction.status)}>{transaction.status}</Badge></TableCell><TableCell>{dateTime(transaction.paidAt || transaction.createdAt)}</TableCell></TableRow>;
                 })}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex flex-col gap-2 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-slate-500">
+                  Trang {page} / {pagination.totalPages} · Tổng {pagination.total} mục
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" disabled={loading || page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                    Trước
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" disabled={loading || page >= pagination.totalPages} onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}>
+                    Tiếp
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
