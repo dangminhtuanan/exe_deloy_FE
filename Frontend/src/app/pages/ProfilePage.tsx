@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Coins, Sparkles } from "lucide-react";
+import { Coins, Sparkles, RefreshCw } from "lucide-react";
 import { Link } from "react-router";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -339,9 +339,95 @@ export function ProfilePage() {
 
   const avatarUrl = resolveAssetUrl(user?.avatar?.url);
 
+  const paymentMethodLabels: Record<string, string> = {
+  cod: "Thanh toán khi nhận hàng (COD)",
+  vnpay: "Ví / Cổng VNPAY",
+  momo: "Ví MoMo",
+  bank_transfer: "Chuyển khoản ngân hàng",
+  ai_credits: "Thanh toán bằng AI Credits",
+};
+
+function getPaymentBadgeClass(status: Order["paymentStatus"]) {
+  switch (status) {
+    case "paid":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "pending":
+    case "unpaid":
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    case "failed":
+      return "bg-rose-50 text-rose-700 border-rose-200";
+    case "refunded":
+      return "bg-purple-50 text-purple-700 border-purple-200";
+    default:
+      return "bg-gray-50 text-gray-700 border-gray-200";
+  }
+}
+
+function getPaymentMethodName(order: any): string {
+  // Nếu order.payment là một Object (chứa thông tin giao dịch)
+  if (typeof order.payment === "object" && order.payment !== null) {
+    const provider = order.payment.provider;
+    if (provider) {
+      return paymentMethodLabels[provider] || provider.toUpperCase();
+    }
+  }
+
+  // Nếu order.payment hoặc order.paymentMethod là dạng string
+  const methodKey = (typeof order.payment === "string" ? order.payment : order.paymentMethod) || "cod";
+  return paymentMethodLabels[methodKey] || methodKey.toUpperCase();
+}
+
+const [aiTransactions, setAiTransactions] = useState<any[]>([]);
+const loadAiTransactions = async () => {
+  try {
+    const response = await aiPackageApi.getMyTransactions();
+    
+    // Nếu response là mảng thì dùng trực tiếp, nếu là object thì lấy .transactions
+    const list = Array.isArray(response) 
+      ? response 
+      : (response?.transactions || []);
+
+    setAiTransactions(list);
+  } catch (error) {
+    console.error("Không thể tải lịch sử AI:", error);
+  }
+};
+
+useEffect(() => {
+  void loadOrders();
+  void loadIssueReports();
+  void loadAiTransactions(); // <-- Gọi thêm hàm này
+}, []);
+
+const aiStatusLabels: Record<string, string> = {
+  PAID: "Thành công",
+  SUCCESS: "Thành công",
+  PENDING: "Đang xử lý",
+  FAILED: "Thất bại",
+  CANCELLED: "Đã hủy",
+};
+
+function getAiStatusBadgeClass(status: string) {
+  const s = status?.toUpperCase();
+  switch (s) {
+    case "PAID":
+    case "SUCCESS":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "PENDING":
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    case "FAILED":
+      return "bg-rose-50 text-rose-700 border-rose-200";
+    case "CANCELLED":
+      return "bg-gray-100 text-gray-600 border-gray-200";
+    default:
+      return "bg-gray-50 text-gray-700 border-gray-200";
+  }
+}
+
+
   return (
     <div className="min-h-screen bg-gray-50 py-10">
-      <div className="container mx-auto px-4 max-w-6xl">
+      <div className="w-full px-4 sm:px-6 lg:px-10">
         <div className="flex flex-col gap-6 lg:flex-row">
           <Card className="lg:w-80 shrink-0">
             <CardHeader>
@@ -430,9 +516,10 @@ export function ProfilePage() {
 
           <div className="flex-1">
             <Tabs defaultValue="profile" className="space-y-4">
-              <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-5">
+              <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-6">
                 <TabsTrigger value="profile">Hồ sơ</TabsTrigger>
                 <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
+                <TabsTrigger value="payments">Thanh toán</TabsTrigger>
                 <TabsTrigger value="issues">Báo cáo sự cố</TabsTrigger>
                 <TabsTrigger value="password">Mật khẩu</TabsTrigger>
                 <TabsTrigger value="email">Đổi email</TabsTrigger>
@@ -636,6 +723,121 @@ export function ProfilePage() {
                         {isSavingProfile ? "Đang lưu..." : "Lưu thay đổi"}
                       </Button>
                     </form>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="payments">
+                <Card>
+                  <CardHeader className="flex-row items-start justify-between gap-4">
+                    <div>
+                      <CardTitle>Lịch sử thanh toán</CardTitle>
+                      <CardDescription>
+                        Danh sách tất cả giao dịch thanh toán đơn hàng và nạp gói AI Credits.
+                      </CardDescription>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        void loadOrders();
+                        void loadAiTransactions();
+                      }}
+                      disabled={isOrdersLoading}
+                    >
+                      <RefreshCw className={`mr-1 h-3.5 w-3.5 ${isOrdersLoading ? "animate-spin" : ""}`} />
+                      Làm mới
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {/* 1. Thanh toán đơn hàng */}
+                      <div>
+                        <h4 className="mb-3 font-semibold text-gray-900">1. Thanh toán đơn hàng</h4>
+                        <div className="overflow-x-auto rounded-lg border">
+                          <table className="w-full text-left text-sm text-gray-600">
+                            <thead className="border-b bg-gray-50 text-xs uppercase text-gray-700">
+                              <tr>
+                                <th className="px-4 py-3">Mã đơn</th>
+                                <th className="px-4 py-3">Thời gian</th>
+                                <th className="px-4 py-3">Phương thức</th>
+                                <th className="px-4 py-3">Số tiền</th>
+                                <th className="px-4 py-3 text-right">Trạng thái</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {orders.map((order) => (
+                                <tr key={`order-${order._id}`} className="hover:bg-gray-50/60">
+                                  <td className="px-4 py-3.5 font-medium text-gray-900">
+                                    #{order._id.slice(-8).toUpperCase()}
+                                  </td>
+                                  <td className="px-4 py-3.5 text-xs text-gray-500">
+                                    {formatDate(order.createdAt)}
+                                  </td>
+                                  <td className="px-4 py-3.5">{getPaymentMethodName(order)}</td>
+                                  <td className="px-4 py-3.5 font-semibold text-gray-900">
+                                    {formatCurrency(order.totalAmount)}
+                                  </td>
+                                  <td className="px-4 py-3.5 text-right">
+                                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${getPaymentBadgeClass(order.paymentStatus)}`}>
+                                      {paymentStatusLabels[order.paymentStatus] || order.paymentStatus}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* 2. Mua gói AI Credits */}
+                      <div>
+                        <h4 className="mb-3 font-semibold text-gray-900">2. Mua gói AI Credits</h4>
+                        {aiTransactions.length === 0 ? (
+                          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-gray-500">
+                            Chưa có giao dịch mua gói AI nào.
+                          </p>
+                        ) : (
+                          <div className="overflow-x-auto rounded-lg border">
+                            <table className="w-full text-left text-sm text-gray-600">
+                              <thead className="border-b bg-gray-50 text-xs uppercase text-gray-700">
+                                <tr>
+                                  <th className="px-4 py-3">Tên gói / Giao dịch</th>
+                                  <th className="px-4 py-3">Thời gian</th>
+                                  <th className="px-4 py-3">Credits nhận</th>
+                                  <th className="px-4 py-3">Số tiền</th>
+                                  <th className="px-4 py-3 text-right">Trạng thái</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {aiTransactions.map((tx) => (
+                                  <tr key={`ai-${tx._id}`} className="hover:bg-gray-50/60">
+                                    <td className="px-4 py-3.5 font-medium text-gray-900">
+                                      {tx.packageName || tx.description || "Gói AI Credits"}
+                                    </td>
+                                    <td className="px-4 py-3.5 text-xs text-gray-500">
+                                      {formatDate(tx.createdAt)}
+                                    </td>
+                                    <td className="px-4 py-3.5 text-blue-600 font-semibold">
+                                      +{tx.credits || 0} credits
+                                    </td>
+                                    <td className="px-4 py-3.5 font-semibold text-gray-900">
+                                      {formatCurrency(tx.amount || 0)}
+                                    </td>
+                                    <td className="px-4 py-3.5 text-right">
+                                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${getAiStatusBadgeClass(tx.status)}`}>
+                                        {aiStatusLabels[tx.status?.toUpperCase()] || tx.status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
