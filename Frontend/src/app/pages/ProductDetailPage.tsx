@@ -335,7 +335,7 @@ export function ProductDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-transparent p-8">
+      <div className="min-h-screen bg-transparent p-3 sm:p-5 lg:p-8">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8">
           <div className="aspect-[3/4] rounded-2xl bg-gray-100 animate-pulse" />
           <div className="space-y-4">

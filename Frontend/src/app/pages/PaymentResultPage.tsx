@@ -79,7 +79,7 @@ export function PaymentResultPage({ mode }: { mode: PaymentResultMode }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-transparent px-4 py-16">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg">
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 text-center shadow-lg sm:p-8">
         <div className={`mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full ${iconClass}`}>
           <Icon className="h-12 w-12" />
         </div>

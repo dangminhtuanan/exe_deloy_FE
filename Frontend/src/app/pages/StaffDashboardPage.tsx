@@ -130,6 +130,7 @@ export function StaffDashboardPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [ordersPagination, setOrdersPagination] = useState<Pagination | null>(null);
   const [paymentsPagination, setPaymentsPagination] = useState<Pagination | null>(null);
+  const [paymentSummary, setPaymentSummary] = useState({ paidCount: 0, paidRevenue: 0 });
   const [ordersPage, setOrdersPage] = useState(1);
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
@@ -160,6 +161,7 @@ export function StaffDashboardPage() {
       setPayments(paymentsResponse.payments);
       setOrdersPagination(ordersResponse.pagination || null);
       setPaymentsPagination(paymentsResponse.pagination || null);
+      setPaymentSummary(paymentsResponse.summary || { paidCount: 0, paidRevenue: 0 });
       setProducts(productsResponse.products);
       setProductsPagination(productsResponse.pagination);
       setCategories(categoriesResponse.categories);
@@ -179,14 +181,12 @@ export function StaffDashboardPage() {
       orders: ordersPagination?.total ?? orders.length,
       pendingOrders: orders.filter((item) => item.status === "pending").length,
       payments: paymentsPagination?.total ?? payments.length,
-      paidPayments: payments.filter((item) => item.status === "PAID").length,
+      paidPayments: paymentSummary.paidCount,
       products: productsPagination?.total ?? products.length,
       lowStock: products.filter((item) => (item.stock || 0) <= 5).length,
-      revenue: payments
-        .filter((item) => item.status === "PAID")
-        .reduce((total, item) => total + item.amount, 0),
+      revenue: paymentSummary.paidRevenue,
     }),
-    [orders, payments, products, ordersPagination, paymentsPagination, productsPagination],
+    [orders, payments, products, ordersPagination, paymentsPagination, productsPagination, paymentSummary],
   );
 
   const keyword = search.trim().toLowerCase();
@@ -387,6 +387,7 @@ export function StaffDashboardPage() {
                   variant={activeSection === section.id ? "default" : "outline"}
                   size="sm"
                   onClick={() => setActiveSection(section.id)}
+                  className="h-auto min-h-9 whitespace-normal px-2 py-2 text-center leading-tight"
                 >
                   <section.icon className="h-4 w-4" />
                   {section.label}

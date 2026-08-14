@@ -232,7 +232,11 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply overflow-x-hidden bg-background text-foreground;
+  }
+
+  #root {
+    min-width: 0;
   }
 
   /**

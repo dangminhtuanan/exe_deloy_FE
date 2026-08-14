@@ -92,6 +92,25 @@ export function AIPackagesPage() {
     return trialTransaction?.status.toUpperCase() as "PAID" | "PENDING" | undefined;
   }, [packages, transactions]);
 
+  const pendingTransactionByPackage = useMemo(() => {
+    const pendingTransactions = new Map<string, AITransaction>();
+
+    transactions.forEach((transaction) => {
+      if (transaction.status.toUpperCase() !== "PENDING") return;
+
+      const packageId = typeof transaction.package === "object" && transaction.package !== null
+        ? transaction.package._id
+        : transaction.package;
+
+      // Transactions are sorted newest first by the API, so retain the first one.
+      if (packageId && !pendingTransactions.has(packageId)) {
+        pendingTransactions.set(packageId, transaction);
+      }
+    });
+
+    return pendingTransactions;
+  }, [transactions]);
+
   const loadData = async () => {
     try {
       const packagesResponse = await aiPackageApi.getPackages();
@@ -166,6 +185,31 @@ export function AIPackagesPage() {
       toast.error(getErrorMessage(error));
       setPurchasingId(null);
     }
+  };
+
+  const handleResumePayment = (transaction: AITransaction) => {
+    const populatedPayment = typeof transaction.payment === "object" && transaction.payment !== null
+      ? transaction.payment
+      : null;
+    const checkoutUrl = transaction.checkoutUrl || populatedPayment?.checkoutUrl;
+
+    if (!checkoutUrl || !transaction.orderCode) {
+      toast.error("Không tìm thấy liên kết thanh toán. Vui lòng bấm Cập nhật và thử lại.");
+      return;
+    }
+
+    const transactionPackage = typeof transaction.package === "object" && transaction.package !== null
+      ? transaction.package
+      : null;
+
+    saveAIPaymentContext({
+      amount: transaction.amount,
+      orderCode: transaction.orderCode,
+      packageName: transactionPackage?.name || "Gói AI",
+      paymentId: populatedPayment?._id || (typeof transaction.payment === "string" ? transaction.payment : ""),
+      transactionId: transaction._id,
+    });
+    window.location.assign(checkoutUrl);
   };
 
   return (
@@ -268,7 +312,10 @@ export function AIPackagesPage() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {packages.map((item) => (
+              {packages.map((item) => {
+                const pendingTransaction = pendingTransactionByPackage.get(item._id);
+
+                return (
                 <Card key={item._id} className="flex h-full flex-col overflow-hidden">
                   <CardHeader className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
@@ -311,8 +358,10 @@ export function AIPackagesPage() {
 
                     <Button
                       className="mt-auto h-10 w-full justify-center gap-2 whitespace-nowrap bg-gray-950 text-sm font-medium text-white hover:bg-gray-800"
-                      onClick={() => handlePurchase(item._id)}
-                      disabled={purchasingId === item._id || (item.isTrial && Boolean(trialPurchaseState))}
+                      onClick={() => pendingTransaction
+                        ? handleResumePayment(pendingTransaction)
+                        : handlePurchase(item._id)}
+                      disabled={purchasingId === item._id || (item.isTrial && trialPurchaseState === "PAID")}
                     >
                       {purchasingId === item._id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -321,13 +370,14 @@ export function AIPackagesPage() {
                       )}
                       {item.isTrial && trialPurchaseState === "PAID"
                         ? "Đã dùng gói thử"
-                        : item.isTrial && trialPurchaseState === "PENDING"
-                          ? "Đang chờ thanh toán"
+                        : pendingTransaction
+                          ? "Tiếp tục thanh toán"
                           : "Thanh toán bằng QR"}
                     </Button>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

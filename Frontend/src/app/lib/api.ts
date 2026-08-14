@@ -428,6 +428,10 @@ export interface PaymentStatusResponse extends MessageResponse {
 interface PaymentsResponse extends MessageResponse {
   payments: Payment[];
   pagination?: Pagination;
+  summary?: {
+    paidCount: number;
+    paidRevenue: number;
+  };
 }
 
 interface PaymentResponse extends MessageResponse {
@@ -519,6 +523,11 @@ interface AICreditsBalanceResponse extends MessageResponse {
 interface AITransactionsResponse extends MessageResponse {
   transactions: AITransaction[];
   pagination?: Pagination;
+  summary?: {
+    paidCount: number;
+    creditsSold: number;
+    paidRevenue: number;
+  };
 }
 
 interface AIPurchaseResponse extends MessageResponse {
@@ -719,6 +728,7 @@ interface CreateOrderPayload {
   email?: string;
   phone: string;
   address: string;
+  city?: string;
   note?: string;
   paymentProvider?: "cod" | "momo" | "vnpay" | "bank_transfer" | "stripe" | "paypal" | "PAYOS";
 }

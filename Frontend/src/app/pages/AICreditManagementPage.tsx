@@ -14,6 +14,13 @@ import { aiPackageApi, getErrorMessage, usersApi } from "../lib/api";
 import type { AITransaction, Pagination, UserProfile } from "../types";
 
 const PAGE_SIZE = 10;
+const transactionStatuses: AITransaction["status"][] = ["PENDING", "PAID", "CANCELLED", "FAILED"];
+const transactionStatusLabels: Record<AITransaction["status"], string> = {
+  PENDING: "Đang chờ",
+  PAID: "Đã thanh toán",
+  CANCELLED: "Đã hủy",
+  FAILED: "Thất bại",
+};
 
 function dateTime(value?: string) {
   return value ? new Date(value).toLocaleString("vi-VN") : "--";
@@ -33,7 +40,9 @@ export function AICreditManagementContent() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [summary, setSummary] = useState({ paidCount: 0, creditsSold: 0, paidRevenue: 0 });
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<AITransaction["status"] | "">("");
   const [loading, setLoading] = useState(true);
   const [grantOpen, setGrantOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -43,11 +52,16 @@ export function AICreditManagementContent() {
     setLoading(true);
     try {
       const [transactionResponse, userResponse] = await Promise.all([
-        aiPackageApi.getAllTransactions({ page: targetPage, limit: PAGE_SIZE }),
+        aiPackageApi.getAllTransactions({
+          page: targetPage,
+          limit: PAGE_SIZE,
+          ...(statusFilter ? { status: statusFilter } : {}),
+        }),
         usersApi.getAll({ page: 1, limit: 200 }),
       ]);
       setTransactions(transactionResponse.transactions);
       setPagination(transactionResponse.pagination ?? null);
+      setSummary(transactionResponse.summary ?? { paidCount: 0, creditsSold: 0, paidRevenue: 0 });
       setUsers(userResponse.users);
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -58,7 +72,7 @@ export function AICreditManagementContent() {
 
   useEffect(() => {
     void loadData(page);
-  }, [page]);
+  }, [page, statusFilter]);
 
   const filteredTransactions = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -71,10 +85,6 @@ export function AICreditManagementContent() {
         .some((value) => String(value).toLowerCase().includes(keyword));
     });
   }, [search, transactions]);
-
-  const paidTransactions = transactions.filter((item) => item.status === "PAID");
-  const totalCreditsSold = paidTransactions.reduce((total, item) => total + item.credits, 0);
-  const totalRevenue = paidTransactions.reduce((total, item) => total + item.amount, 0);
 
   const submitGrant = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -123,9 +133,9 @@ export function AICreditManagementContent() {
         </div>
 
         <section className="grid gap-4 md:grid-cols-3">
-          <Metric title="Giao dịch đã thanh toán" value={paidTransactions.length} />
-          <Metric title="Credit đã bán" value={totalCreditsSold} icon={<Coins className="h-5 w-5" />} />
-          <Metric title="Doanh thu credit AI" value={money(totalRevenue)} />
+          <Metric title="Giao dịch đã thanh toán" value={summary.paidCount} />
+          <Metric title="Credit đã bán" value={summary.creditsSold} icon={<Coins className="h-5 w-5" />} />
+          <Metric title="Doanh thu credit AI" value={money(summary.paidRevenue)} />
         </section>
 
         <Card>
@@ -134,9 +144,24 @@ export function AICreditManagementContent() {
               <CardTitle>Lịch sử mua credit AI</CardTitle>
               <CardDescription>Hiển thị tối đa {PAGE_SIZE} giao dịch mới nhất.</CardDescription>
             </div>
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Tìm tên, email, gói..." />
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Tìm tên, email, gói..." />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(event) => {
+                  setStatusFilter(event.target.value as AITransaction["status"] | "");
+                  setPage(1);
+                }}
+                className="h-9 rounded-md border bg-white px-3 text-sm"
+              >
+                <option value="">Tất cả trạng thái thanh toán</option>
+                {transactionStatuses.map((status) => (
+                  <option key={status} value={status}>{transactionStatusLabels[status]}</option>
+                ))}
+              </select>
             </div>
           </CardHeader>
           <CardContent className="p-0">

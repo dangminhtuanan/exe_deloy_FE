@@ -9,6 +9,8 @@ import { Label } from '../components/ui/label';
 import { getErrorMessage, ordersApi } from '../lib/api';
 import { toast } from 'sonner';
 
+const SHIPPING_CITY = 'Thành phố Hồ Chí Minh';
+
 export function CheckoutPage() {
   const navigate = useNavigate();
   const { items, totalPrice, clearCart } = useCart();
@@ -19,7 +21,7 @@ export function CheckoutPage() {
     email: '',
     phone: '',
     address: '',
-    city: '',
+    city: SHIPPING_CITY,
     district: '',
     ward: '',
     note: '',
@@ -87,6 +89,7 @@ export function CheckoutPage() {
         customerName: formData.fullName.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
+        city: SHIPPING_CITY,
         address: shippingAddress,
         note: formData.note.trim(),
       });
@@ -105,7 +108,7 @@ export function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent py-8 px-4">
+    <div className="min-h-screen bg-transparent px-3 py-5 sm:px-4 sm:py-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -120,12 +123,12 @@ export function CheckoutPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid gap-5 lg:grid-cols-3 lg:gap-8">
             {/* Checkout Form */}
             <div className="lg:col-span-2 space-y-6">
               
               {/* Contact Information */}
-              <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="rounded-xl bg-white p-4 shadow-sm sm:p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Thông tin liên hệ</h2>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
@@ -169,7 +172,7 @@ export function CheckoutPage() {
               </div>
 
               {/* Shipping Address */}
-              <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="rounded-xl bg-white p-4 shadow-sm sm:p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Địa chỉ giao hàng</h2>
                 <div className="space-y-4">
                   <div className="grid md:grid-cols-3 gap-4">
@@ -179,10 +182,9 @@ export function CheckoutPage() {
                         id="city"
                         name="city"
                         value={formData.city}
-                        onChange={handleInputChange}
-                        placeholder="Hà Nội"
+                        readOnly
                         required
-                        className="mt-1"
+                        className="mt-1 cursor-not-allowed bg-gray-100"
                       />
                     </div>
                     <div>
@@ -238,7 +240,7 @@ export function CheckoutPage() {
               </div>
 
               {/* Payment Method */}
-              <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="rounded-xl bg-white p-4 shadow-sm sm:p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Phương thức thanh toán</h2>
                 <div className="flex items-center justify-between rounded-xl border-2 border-black bg-gray-50 p-4">
                   <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-100"><QrCode className="h-5 w-5 text-cyan-700" /></div><div><p className="font-semibold text-gray-900">Thanh toán PayOS</p><p className="text-sm text-gray-500">Quét QR hoặc chuyển khoản qua cổng PayOS</p></div></div>
@@ -250,7 +252,7 @@ export function CheckoutPage() {
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl p-6 shadow-sm sticky top-8">
+              <div className="rounded-xl bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-8">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Đơn hàng của bạn</h2>
                 
                 {/* Order Items */}

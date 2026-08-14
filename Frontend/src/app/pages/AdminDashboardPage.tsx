@@ -962,6 +962,7 @@ export function AdminDashboardPage() {
                   variant={activeSection === section.id ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleSectionChange(section.id)}
+                  className="h-auto min-h-9 whitespace-normal px-2 py-2 text-center leading-tight"
                 >
                   <section.icon className="h-4 w-4" />
                   {section.label}

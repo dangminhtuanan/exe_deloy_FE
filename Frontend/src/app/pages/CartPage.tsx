@@ -53,10 +53,10 @@ export function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent py-8 px-4">
+    <div className="min-h-screen bg-transparent px-3 py-5 sm:px-4 sm:py-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-5 sm:mb-8">
           <Link 
             to="/" 
             className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
@@ -64,7 +64,7 @@ export function CartPage() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Tiếp tục mua sắm
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Giỏ hàng của bạn</h1>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Giỏ hàng của bạn</h1>
           <p className="text-gray-600 mt-1">{items.length} sản phẩm</p>
         </div>
 
@@ -72,10 +72,10 @@ export function CartPage() {
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             {items.map((item) => (
-              <div key={item.id} className="bg-white rounded-xl p-6 shadow-sm">
-                <div className="flex gap-6">
+              <div key={item.id} className="overflow-hidden rounded-xl bg-white p-4 shadow-sm sm:p-6">
+                <div className="flex gap-3 sm:gap-6">
                   {/* Product Image */}
-                  <div className="w-32 h-40 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                  <div className="h-28 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:h-40 sm:w-32">
                     <img
                       src={item.image}
                       alt={item.name}
@@ -85,9 +85,9 @@ export function CartPage() {
 
                   {/* Product Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 text-lg mb-1">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="break-words text-base font-semibold text-gray-900 sm:text-lg">
                           {item.name}
                         </h3>
                         <p className="text-sm text-gray-500">{item.category}</p>
@@ -101,9 +101,9 @@ export function CartPage() {
                       </button>
                     </div>
 
-                    <div className="flex items-end justify-between mt-4">
+                    <div className="mt-3 flex flex-col gap-3 sm:mt-4 sm:flex-row sm:items-end sm:justify-between">
                       {/* Quantity Controls */}
-                      <div className="flex items-center border border-gray-200 rounded-lg">
+                      <div className="flex w-fit items-center rounded-lg border border-gray-200">
                         <button
                           onClick={() => void handleUpdateQuantity(item.id, item.quantity - 1)}
                           disabled={item.quantity <= 1}
@@ -112,7 +112,7 @@ export function CartPage() {
                         >
                           <Minus className="w-4 h-4" />
                         </button>
-                        <span className="px-6 py-2 font-medium text-gray-900 min-w-[60px] text-center">
+                        <span className="min-w-10 px-3 py-2 text-center font-medium text-gray-900 sm:min-w-[60px] sm:px-6">
                           {item.quantity}
                         </span>
                         <button
@@ -126,8 +126,8 @@ export function CartPage() {
                       </div>
 
                       {/* Price */}
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-gray-900">
+                      <div className="text-left sm:text-right">
+                        <p className="text-lg font-bold text-gray-900 sm:text-xl">
                           {formatPrice(item.price * item.quantity)}
                         </p>
                         {item.quantity > 1 && (
@@ -145,7 +145,7 @@ export function CartPage() {
 
           {/* Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl p-6 shadow-sm sticky top-8">
+            <div className="rounded-xl bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-8">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Tóm tắt đơn hàng</h2>
               
               <div className="space-y-4 mb-6 pb-6 border-b border-gray-100">

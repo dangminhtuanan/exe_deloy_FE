@@ -34,10 +34,10 @@ export function Header({ cartCount }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 shrink-0 border-b border-slate-100 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-[72px] w-full max-w-[1600px] items-center px-4 sm:px-6 lg:px-8 xl:px-10">
-        <div className="flex w-44 items-center">
+      <div className="mx-auto flex h-[64px] w-full max-w-[1600px] items-center gap-2 px-3 sm:h-[72px] sm:px-6 lg:px-8 xl:px-10">
+        <div className="flex min-w-0 flex-1 items-center sm:w-44 sm:flex-none">
           <Link to="/" className="inline-flex flex-col leading-none">
-            <span className="text-2xl font-black tracking-[-0.06em] text-slate-950">
+            <span className="text-xl font-black tracking-[-0.06em] text-slate-950 sm:text-2xl">
               OUTFIO
             </span>
             <span className="mt-1 text-[8px] uppercase tracking-[0.3em] text-slate-400">
@@ -66,8 +66,8 @@ export function Header({ cartCount }: HeaderProps) {
           })}
         </nav>
 
-        <div className="ml-auto flex w-44 items-center justify-end gap-1">
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-600 hover:text-[#3977ed]" aria-label="Tìm kiếm">
+        <div className="ml-auto flex shrink-0 items-center justify-end sm:w-44 sm:gap-1">
+          <Button variant="ghost" size="icon" className="hidden h-9 w-9 text-slate-600 hover:text-[#3977ed] min-[360px]:inline-flex" aria-label="Tìm kiếm">
             <Search className="h-4 w-4" />
           </Button>
           <Link to={accountPath}>
