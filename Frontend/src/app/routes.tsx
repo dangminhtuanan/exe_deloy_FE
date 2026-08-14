@@ -16,6 +16,8 @@ import { ShipperDashboardPage } from './pages/ShipperDashboardPage';
 import { StaffDashboardPage } from './pages/StaffDashboardPage';
 import { AIPackagesPage } from './pages/AIPackagesPage';
 import { AIPaymentResultPage } from './pages/AIPaymentResultPage';
+import { TermsPage } from "./pages/TermsPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
 import { GuestOnlyRoute, RequireAdmin, RequireAuth, RequireRoles } from './components/RouteGuards';
 
 export const router = createBrowserRouter([
@@ -84,6 +86,14 @@ export const router = createBrowserRouter([
       {
         path: 'signup',
         Component: SignupPage,
+      },
+      {
+        path: 'terms',
+        Component: TermsPage,
+      },
+      {
+        path: 'privacy',
+        Component: PrivacyPage,
       },
       {
         path: 'forgot-password',
