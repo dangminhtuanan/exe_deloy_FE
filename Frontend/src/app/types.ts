@@ -325,4 +325,5 @@ export interface UpdateUserPayload {
   role?: UserRole;
   phone?: string;
   address?: string;
+  isActive?: boolean;
 }

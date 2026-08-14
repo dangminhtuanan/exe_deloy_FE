@@ -1003,7 +1003,7 @@ export const usersApi = {
     });
   },
   remove(id: string) {
-    return request<MessageResponse>(`/users/${id}`, {
+    return request<UserResponse>(`/users/${id}`, {
       method: "DELETE",
       auth: true,
     });
@@ -1268,6 +1268,12 @@ export const paymentsApi = {
       method: "PATCH",
       auth: true,
       body: payload,
+    });
+  },
+  remove(id: string) {
+    return request<MessageResponse>(`/payments/${id}`, {
+      method: "DELETE",
+      auth: true,
     });
   },
 };
