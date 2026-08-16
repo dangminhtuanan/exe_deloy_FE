@@ -679,6 +679,23 @@ interface NormalizedAIOutfitHistoryResponse extends MessageResponse {
 interface UploadImageResponse extends MessageResponse {
   url: string;
   public_id: string;
+  asset: UserImageAsset;
+}
+
+export interface UserImageAsset {
+  id: string;
+  kind: "model" | "clothing";
+  url: string;
+  name: string;
+  clothType: "upper" | "lower" | "full_set" | "";
+  color: string;
+  gender: string;
+  ageGroup: string;
+  ethnicity: string;
+  skinTone: string;
+  hairColor: string;
+  tags: string[];
+  createdAt: string;
 }
 
 interface ProductListParams {
@@ -1092,14 +1109,26 @@ export const productsApi = {
 };
 
 export const uploadApi = {
-  uploadImage(file: File) {
+  uploadImage(file: File, kind: "model" | "clothing", clothType?: string) {
     const formData = new FormData();
     formData.append("image", file);
+    formData.append("kind", kind);
+    if (clothType) formData.append("clothType", clothType);
 
     return request<UploadImageResponse>("/upload", {
       method: "POST",
+      auth: true,
       body: formData,
     });
+  },
+  getMyLibrary() {
+    return request<{ assets: UserImageAsset[] }>("/upload/library", { auth: true });
+  },
+  updateLibraryImage(id: string, payload: Partial<UserImageAsset>) {
+    return request<{ asset: UserImageAsset }>(`/upload/library/${id}`, { method: "PATCH", auth: true, body: payload });
+  },
+  deleteLibraryImage(id: string) {
+    return request<MessageResponse>(`/upload/library/${id}`, { method: "DELETE", auth: true });
   },
 };
 

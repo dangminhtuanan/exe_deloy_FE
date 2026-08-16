@@ -75,6 +75,7 @@ const MIX_MATCH_CREDIT_COST = 2;
 type ClothingImageType = 'upper' | 'lower' | 'full_set';
 
 interface SavedClothingImage {
+  id?: string;
   url: string;
   clothType: ClothingImageType;
   name: string;
@@ -84,6 +85,7 @@ interface SavedClothingImage {
 }
 
 interface SavedModelProfile {
+  id?: string;
   url: string;
   name: string;
   gender: '' | 'men' | 'women' | 'unisex';
@@ -120,6 +122,38 @@ type SaveFilePicker = (options?: {
     close: () => Promise<void>;
   }>;
 }>;
+
+const convertImageBlobToPng = (sourceBlob: Blob): Promise<Blob> => new Promise((resolve, reject) => {
+  const objectUrl = URL.createObjectURL(sourceBlob);
+  const image = new Image();
+  const cleanup = () => URL.revokeObjectURL(objectUrl);
+
+  image.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d');
+
+    if (!context || canvas.width === 0 || canvas.height === 0) {
+      cleanup();
+      reject(new Error('Dữ liệu ảnh không hợp lệ'));
+      return;
+    }
+
+    context.drawImage(image, 0, 0);
+    canvas.toBlob((pngBlob) => {
+      cleanup();
+      if (pngBlob) resolve(pngBlob);
+      else reject(new Error('Không thể chuyển ảnh sang định dạng PNG'));
+    }, 'image/png');
+  };
+
+  image.onerror = () => {
+    cleanup();
+    reject(new Error('Tệp tải về không phải là ảnh hợp lệ'));
+  };
+  image.src = objectUrl;
+});
 
 function getUploadedModelStorageKey() {
   const userId = getStoredAuthSession()?.profile?._id || 'guest';
@@ -653,22 +687,22 @@ const AIHistoryView = ({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid w-full grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => onDownload(item)}
-                    className="flex items-center justify-center gap-1.5 rounded-lg bg-[#20B29A] px-2 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#1a9682]"
+                    className="inline-flex h-10 min-w-0 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#20B29A] px-2 text-xs font-semibold text-white transition-colors hover:bg-[#1a9682]"
                   >
-                    <Download className="h-4 w-4" />
-                    Tải xuống
+                    <Download className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Tải xuống</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => onPreview(item.resultImageUrl)}
-                    className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                    className="inline-flex h-10 min-w-0 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                   >
-                    <Eye className="h-4 w-4" />
-                    Xem ảnh
+                    <Eye className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Xem ảnh</span>
                   </button>
                 </div>
               </div>
@@ -1175,9 +1209,7 @@ export function UseAIPage() {
   const [comboUpperSelection, setComboUpperSelection] = useState<TryOnClothingSelection | null>(null);
   const [comboLowerSelection, setComboLowerSelection] = useState<TryOnClothingSelection | null>(null);
   const [clothingLibraryTab, setClothingLibraryTab] = useState(0);
-  const [uploadedClothingImages, setUploadedClothingImages] = useState<SavedClothingImage[]>(
-    () => loadUploadedClothingImages()
-  );
+  const [uploadedClothingImages, setUploadedClothingImages] = useState<SavedClothingImage[]>([]);
   const [customClothingImageUrl, setCustomClothingImageUrl] = useState<string | null>(null);
   const [customClothingType, setCustomClothingType] = useState<ClothingImageType>('upper');
   const [isUploadingClothing, setIsUploadingClothing] = useState(false);
@@ -1193,8 +1225,8 @@ export function UseAIPage() {
   const [stylingOutfit, setStylingOutfit] = useState<{ top?: Product; bottom?: Product } | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [uploadedModelImages, setUploadedModelImages] = useState<string[]>(() => loadUploadedModelImages());
-  const [savedModelProfiles, setSavedModelProfiles] = useState<SavedModelProfile[]>(() => loadSavedModelProfiles());
+  const [uploadedModelImages, setUploadedModelImages] = useState<string[]>([]);
+  const [savedModelProfiles, setSavedModelProfiles] = useState<SavedModelProfile[]>([]);
   const [isUploadingModel, setIsUploadingModel] = useState(false);
   const [brokenImageUrls, setBrokenImageUrls] = useState<Set<string>>(() => new Set());
   const [historyItems, setHistoryItems] = useState<AIOutfitHistoryItem[]>([]);
@@ -1207,6 +1239,34 @@ export function UseAIPage() {
   const [editingModel, setEditingModel] = useState<SavedModelProfile | null>(null);
   const generationLockRef = useRef(false);
   const initialProductSelectionAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUploadedClothingImages([]);
+      setUploadedModelImages([]);
+      setSavedModelProfiles([]);
+      return;
+    }
+    let cancelled = false;
+    void uploadApi.getMyLibrary().then(({ assets }) => {
+      if (cancelled) return;
+      const clothing = assets.filter((asset) => asset.kind === 'clothing').map((asset) => ({
+        id: asset.id, url: asset.url, name: asset.name || 'Trang phục',
+        clothType: asset.clothType || 'upper', color: asset.color,
+        tags: asset.tags || [], createdAt: asset.createdAt,
+      } satisfies SavedClothingImage));
+      const models = assets.filter((asset) => asset.kind === 'model').map((asset) => ({
+        id: asset.id, url: asset.url, name: asset.name || 'Mẫu của tôi',
+        gender: asset.gender as SavedModelProfile['gender'], ageGroup: asset.ageGroup,
+        ethnicity: asset.ethnicity, skinTone: asset.skinTone, hairColor: asset.hairColor,
+        tags: asset.tags || [], createdAt: asset.createdAt,
+      } satisfies SavedModelProfile));
+      setUploadedClothingImages(clothing);
+      setSavedModelProfiles(models);
+      setUploadedModelImages(models.map((item) => item.url));
+    }).catch((error) => toast.error('Không thể tải thư viện ảnh', { description: getErrorMessage(error) }));
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
   const navigateFromSidebar = (path: string) => {
     setMobileMenuOpen(false);
@@ -1237,9 +1297,12 @@ export function UseAIPage() {
     try {
       const response = await fetch(imageUrl);
       if (!response.ok) throw new Error('Không thể tải dữ liệu ảnh');
-      const imageBlob = await response.blob();
+      // Providers can return JPEG/WebP bytes behind a .png URL. Re-encode the
+      // actual image so iOS Photos does not receive a mismatched/corrupt file.
+      const downloadedBlob = await response.blob();
+      const imageBlob = await convertImageBlobToPng(downloadedBlob);
       const imageFile = new File([imageBlob], suggestedName, {
-        type: imageBlob.type || 'image/png',
+        type: 'image/png',
       });
       const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
         || (navigator.maxTouchPoints > 1 && window.matchMedia('(max-width: 1024px)').matches);
@@ -1254,7 +1317,7 @@ export function UseAIPage() {
             files: [imageFile],
             title: 'Ảnh kết quả Outfio',
           });
-          toast.success('Hãy chọn lưu hoặc tải ảnh trong bảng chia sẻ');
+          toast.success('Chọn “Lưu hình ảnh” để đưa ảnh vào ứng dụng Ảnh');
           return;
         } catch (error) {
           if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -1538,19 +1601,18 @@ export function UseAIPage() {
 
     setIsUploadingModel(true);
     try {
-      const response = await uploadApi.uploadImage(file);
+      const response = await uploadApi.uploadImage(file, 'model');
       const newProfile: SavedModelProfile = {
         ...createDefaultModelProfile(response.url, savedModelProfiles.length),
-        createdAt: new Date().toISOString(),
+        id: response.asset.id,
+        createdAt: response.asset.createdAt,
       };
       setUploadedModelImages((prev) => {
         const next = getUniqueModelUrls([response.url, ...prev]);
-        saveUploadedModelImages(next);
         return next;
       });
       setSavedModelProfiles((previousProfiles) => {
         const nextProfiles = [newProfile, ...previousProfiles.filter((profile) => profile.url !== response.url)];
-        saveModelProfiles(nextProfiles);
         return nextProfiles;
       });
       if (openEditor) setEditingModel(newProfile);
@@ -1597,9 +1659,10 @@ export function UseAIPage() {
 
     setIsUploadingClothing(true);
     try {
-      const response = await uploadApi.uploadImage(file);
       const uploadedClothingType = selectAfterUpload && clothesTab === 1 ? activeComboSlot : customClothingType;
+      const response = await uploadApi.uploadImage(file, 'clothing', uploadedClothingType);
       const uploadedItem: SavedClothingImage = {
+        id: response.asset.id,
         url: response.url,
         clothType: uploadedClothingType,
         name: `Trang phục ${uploadedClothingImages.length + 1}`,
@@ -1609,7 +1672,6 @@ export function UseAIPage() {
       };
       setUploadedClothingImages((previousItems) => {
         const nextItems = getUniqueClothingImages([uploadedItem, ...previousItems]);
-        saveUploadedClothingImages(nextItems);
         return nextItems;
       });
       if (selectAfterUpload && clothesTab === 1) {
@@ -1679,11 +1741,13 @@ export function UseAIPage() {
     setCustomClothingType(clothType);
     if (!customClothingImageUrl) return;
 
+    const savedItem = uploadedClothingImages.find((item) => item.url === customClothingImageUrl);
+    if (savedItem?.id) void uploadApi.updateLibraryImage(savedItem.id, { clothType });
+
     setUploadedClothingImages((previousItems) => {
       const nextItems = previousItems.map((item) =>
         item.url === customClothingImageUrl ? { ...item, clothType } : item
       );
-      saveUploadedClothingImages(nextItems);
       return nextItems;
     });
   };
@@ -1691,7 +1755,6 @@ export function UseAIPage() {
   const removeUploadedClothing = (url: string) => {
     setUploadedClothingImages((previousItems) => {
       const nextItems = previousItems.filter((item) => item.url !== url);
-      saveUploadedClothingImages(nextItems);
       return nextItems;
     });
     if (customClothingImageUrl === url) setCustomClothingImageUrl(null);
@@ -1715,10 +1778,10 @@ export function UseAIPage() {
     if (file) void uploadModelImage(file, 'try-on', true, false);
   };
 
-  const saveClothingDetails = (updatedItem: SavedClothingImage) => {
+  const saveClothingDetails = async (updatedItem: SavedClothingImage) => {
+    if (updatedItem.id) await uploadApi.updateLibraryImage(updatedItem.id, updatedItem);
     setUploadedClothingImages((previousItems) => {
       const nextItems = previousItems.map((item) => item.url === updatedItem.url ? updatedItem : item);
-      saveUploadedClothingImages(nextItems);
       return nextItems;
     });
     if (customClothingImageUrl === updatedItem.url) setCustomClothingType(updatedItem.clothType);
@@ -1726,10 +1789,10 @@ export function UseAIPage() {
     toast.success('Đã cập nhật quần áo');
   };
 
-  const saveModelDetails = (updatedItem: SavedModelProfile) => {
+  const saveModelDetails = async (updatedItem: SavedModelProfile) => {
+    if (updatedItem.id) await uploadApi.updateLibraryImage(updatedItem.id, updatedItem);
     setSavedModelProfiles((previousProfiles) => {
       const nextProfiles = previousProfiles.map((profile) => profile.url === updatedItem.url ? updatedItem : profile);
-      saveModelProfiles(nextProfiles);
       return nextProfiles;
     });
     setEditingModel(null);
@@ -1757,23 +1820,23 @@ export function UseAIPage() {
     setActiveResource('create');
   };
 
-  const deleteClothingFromLibrary = (item: SavedClothingImage) => {
+  const deleteClothingFromLibrary = async (item: SavedClothingImage) => {
     if (!window.confirm(`Xóa "${item.name}" khỏi tủ đồ?`)) return;
+    if (item.id) await uploadApi.deleteLibraryImage(item.id);
     removeUploadedClothing(item.url);
     if (editingClothing?.url === item.url) setEditingClothing(null);
     toast.success('Đã xóa khỏi tủ đồ');
   };
 
-  const deleteModelFromLibrary = (item: SavedModelProfile) => {
+  const deleteModelFromLibrary = async (item: SavedModelProfile) => {
     if (!window.confirm(`Xóa "${item.name}" khỏi danh sách mẫu?`)) return;
+    if (item.id) await uploadApi.deleteLibraryImage(item.id);
     setUploadedModelImages((previousUrls) => {
       const nextUrls = previousUrls.filter((url) => url !== item.url);
-      saveUploadedModelImages(nextUrls);
       return nextUrls;
     });
     setSavedModelProfiles((previousProfiles) => {
       const nextProfiles = previousProfiles.filter((profile) => profile.url !== item.url);
-      saveModelProfiles(nextProfiles);
       return nextProfiles;
     });
     setSelectedModel(null);
