@@ -650,8 +650,8 @@ const AIHistoryView = ({
             const lowerClothingImageUrl = getLowerClothingImageUrl(item);
 
             return (
-            <div key={item._id} className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-              <div className="relative aspect-[3/4] bg-gray-100">
+            <div key={item._id} className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+              <div className="relative h-80 shrink-0 bg-gray-100 sm:h-96 2xl:h-[420px]">
                 <img
                   src={item.resultImageUrl}
                   alt={historyTypeLabel(item)}
@@ -665,7 +665,7 @@ const AIHistoryView = ({
                 </div>
               </div>
 
-              <div className="space-y-3 p-3">
+              <div className="flex flex-1 flex-col gap-3 p-3">
                 <div>
                   <p className="line-clamp-1 text-sm font-semibold text-gray-900">
                     {item.product?.name || (item.clothType === 'combo' ? 'Outfit mix and match' : 'Thử đồ AI')}
@@ -673,21 +673,21 @@ const AIHistoryView = ({
                   <p className="mt-0.5 text-xs text-gray-500">{formatHistoryDate(item.createdAt)}</p>
                 </div>
 
-                <div className={`grid gap-2 ${lowerClothingImageUrl ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                  <div className="aspect-[3/4] overflow-hidden rounded-md bg-gray-100">
+                <div className={`grid h-28 shrink-0 gap-2 ${lowerClothingImageUrl ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  <div className="h-28 overflow-hidden rounded-md bg-gray-100">
                     <img src={item.modelImageUrl} alt="Model" className="h-full w-full object-cover" />
                   </div>
-                  <div className="aspect-[3/4] overflow-hidden rounded-md bg-gray-100">
+                  <div className="h-28 overflow-hidden rounded-md bg-gray-100">
                     <img src={item.clothingImageUrl} alt="Clothing" className="h-full w-full object-cover" />
                   </div>
                   {lowerClothingImageUrl && (
-                    <div className="aspect-[3/4] overflow-hidden rounded-md bg-gray-100">
+                    <div className="h-28 overflow-hidden rounded-md bg-gray-100">
                       <img src={lowerClothingImageUrl} alt="Lower clothing" className="h-full w-full object-cover" />
                     </div>
                   )}
                 </div>
 
-                <div className="grid w-full grid-cols-2 gap-2">
+                <div className="mt-auto grid w-full grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => onDownload(item)}
@@ -1276,10 +1276,14 @@ export function UseAIPage() {
   const downloadResultImage = async (imageUrl: string, filePrefix: string) => {
     const downloadTimestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '-').replace('Z', '');
     const suggestedName = `${filePrefix}-${downloadTimestamp}.png`;
+    const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+      || (navigator.maxTouchPoints > 1 && window.matchMedia('(max-width: 1024px)').matches);
     const saveFilePicker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
     let fileHandle: Awaited<ReturnType<SaveFilePicker>> | null = null;
 
-    if (saveFilePicker) {
+    // Mobile browsers must use the operating system share sheet. Opening a
+    // file picker here sends the image to Downloads instead of Photos/Gallery.
+    if (!isMobileDevice && saveFilePicker) {
       try {
         fileHandle = await saveFilePicker({
           suggestedName,
@@ -1304,9 +1308,6 @@ export function UseAIPage() {
       const imageFile = new File([imageBlob], suggestedName, {
         type: 'image/png',
       });
-      const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-        || (navigator.maxTouchPoints > 1 && window.matchMedia('(max-width: 1024px)').matches);
-
       if (
         isMobileDevice
         && typeof navigator.share === 'function'
@@ -1321,6 +1322,18 @@ export function UseAIPage() {
           return;
         } catch (error) {
           if (error instanceof DOMException && error.name === 'AbortError') return;
+        }
+      }
+
+      if (isMobileDevice) {
+        const objectUrl = URL.createObjectURL(imageBlob);
+        const previewWindow = window.open(objectUrl, '_blank');
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        if (previewWindow) {
+          toast.info('Nhấn giữ ảnh rồi chọn “Lưu vào Ảnh”', {
+            description: 'Trình duyệt này không hỗ trợ gửi ảnh trực tiếp tới thư viện.',
+          });
+          return;
         }
       }
 
