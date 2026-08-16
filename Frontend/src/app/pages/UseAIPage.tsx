@@ -1326,9 +1326,10 @@ export function UseAIPage() {
       }
 
       if (isMobileDevice) {
-        const objectUrl = URL.createObjectURL(imageBlob);
+        const objectUrl = URL.createObjectURL(imageFile);
         const previewWindow = window.open(objectUrl, '_blank');
-        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        // Mobile browsers may keep reading the blob after the new tab opens.
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 120_000);
         if (previewWindow) {
           toast.info('Nhấn giữ ảnh rồi chọn “Lưu vào Ảnh”', {
             description: 'Trình duyệt này không hỗ trợ gửi ảnh trực tiếp tới thư viện.',
@@ -1342,14 +1343,16 @@ export function UseAIPage() {
         await writable.write(imageBlob);
         await writable.close();
       } else {
-        const objectUrl = URL.createObjectURL(imageBlob);
+        const objectUrl = URL.createObjectURL(imageFile);
         const downloadLink = document.createElement('a');
         downloadLink.href = objectUrl;
         downloadLink.download = suggestedName;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         downloadLink.remove();
-        URL.revokeObjectURL(objectUrl);
+        // Revoking synchronously can truncate the file on Android/iOS while
+        // the operating system is still copying it into Photos/Downloads.
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 120_000);
       }
 
       toast.success('Đã lưu ảnh xuống thiết bị');
