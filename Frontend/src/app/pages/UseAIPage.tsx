@@ -675,14 +675,14 @@ const AIHistoryView = ({
 
                 <div className={`grid h-28 shrink-0 gap-2 ${lowerClothingImageUrl ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   <div className="h-28 overflow-hidden rounded-md bg-gray-100">
-                    <img src={item.modelImageUrl} alt="Model" className="h-full w-full object-cover" />
+                    <img src={item.modelImageUrl} alt="Model" className="h-full w-full object-contain object-top" />
                   </div>
                   <div className="h-28 overflow-hidden rounded-md bg-gray-100">
-                    <img src={item.clothingImageUrl} alt="Clothing" className="h-full w-full object-cover" />
+                    <img src={item.clothingImageUrl} alt="Clothing" className="h-full w-full object-contain object-top" />
                   </div>
                   {lowerClothingImageUrl && (
                     <div className="h-28 overflow-hidden rounded-md bg-gray-100">
-                      <img src={lowerClothingImageUrl} alt="Lower clothing" className="h-full w-full object-cover" />
+                      <img src={lowerClothingImageUrl} alt="Lower clothing" className="h-full w-full object-contain object-top" />
                     </div>
                   )}
                 </div>
