@@ -33,20 +33,20 @@ export function Header({ cartCount }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-50 shrink-0 border-b border-slate-100 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-[64px] w-full max-w-[1600px] items-center gap-2 px-3 sm:h-[72px] sm:px-6 lg:px-8 xl:px-10">
+    <header className="sticky top-0 z-50 shrink-0 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+      <div className="mx-auto flex h-[72px] w-full max-w-[1600px] items-center gap-2 px-3 sm:h-[84px] sm:px-6 lg:px-8 xl:px-10">
         <div className="flex min-w-0 flex-1 items-center sm:w-44 sm:flex-none">
           <Link to="/" className="inline-flex flex-col leading-none">
-            <span className="text-xl font-black tracking-[-0.06em] text-slate-950 sm:text-2xl">
+            <span className="text-2xl font-black tracking-[-0.06em] text-slate-950 sm:text-[30px]">
               OUTFIO
             </span>
-            <span className="mt-1 text-[8px] uppercase tracking-[0.3em] text-slate-400">
+            <span className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.3em] text-slate-500">
               Fashion Store
             </span>
           </Link>
         </div>
 
-        <nav className="hidden flex-1 items-center justify-center gap-7 md:flex">
+        <nav className="hidden flex-1 items-center justify-center gap-10 md:flex">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
 
@@ -54,10 +54,10 @@ export function Header({ cartCount }: HeaderProps) {
               <Link
                 key={item.label}
                 to={item.href}
-                className={`relative py-7 text-[10px] font-bold uppercase transition-colors hover:text-[#3977ed] ${
+                className={`relative flex h-11 items-center rounded-lg border px-4 text-xs font-extrabold uppercase tracking-wide transition-all ${
                   isActive
-                    ? "text-[#3977ed] after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#3977ed]"
-                    : "text-slate-600"
+                    ? "border-[#3977ed] bg-[#3977ed] text-white shadow-sm"
+                    : "border-transparent text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563eb]"
                 }`}
               >
                 {item.label}
@@ -67,26 +67,26 @@ export function Header({ cartCount }: HeaderProps) {
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center justify-end sm:w-44 sm:gap-1">
-          <Button variant="ghost" size="icon" className="hidden h-9 w-9 text-slate-600 hover:text-[#3977ed] min-[360px]:inline-flex" aria-label="Tìm kiếm">
-            <Search className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="hidden h-11 w-11 text-slate-700 hover:text-[#3977ed] min-[360px]:inline-flex" aria-label="Tìm kiếm">
+            <Search className="h-5 w-5" />
           </Button>
           <Link to={accountPath}>
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 text-slate-600 hover:text-[#3977ed]"
+              className="h-11 w-11 text-slate-700 hover:text-[#3977ed]"
             >
-              <User className="h-4 w-4" />
+              <User className="h-5 w-5" />
             </Button>
           </Link>
 
           {isAuthenticated && (
             <Button
               variant="ghost"
-              className="hidden h-9 px-2 text-slate-600 hover:text-[#3977ed] sm:inline-flex"
+              className="hidden h-11 px-3 text-sm font-semibold text-slate-700 hover:text-[#3977ed] sm:inline-flex"
               onClick={handleLogout}
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-5 w-5" />
               <span className="hidden lg:inline">Đăng xuất</span>
             </Button>
           )}
@@ -95,9 +95,9 @@ export function Header({ cartCount }: HeaderProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="relative h-9 w-9 text-slate-600 hover:text-[#3977ed]"
+              className="relative h-11 w-11 text-slate-700 hover:text-[#3977ed]"
             >
-              <ShoppingBag className="h-4 w-4" />
+              <ShoppingBag className="h-5 w-5" />
               {cartCount > 0 && (
                 <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#3977ed] px-1 text-[10px] font-semibold leading-none text-white">
                   {cartCount}
@@ -110,24 +110,26 @@ export function Header({ cartCount }: HeaderProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 text-[#8b5d7c] hover:text-pink-500 sm:hidden"
+              className="h-11 w-11 text-[#8b5d7c] hover:text-pink-500 sm:hidden"
               onClick={handleLogout}
               title="Đăng xuất"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-5 w-5" />
             </Button>
           )}
         </div>
       </div>
 
       <div className="border-t border-slate-100 md:hidden">
-        <nav className="mx-auto flex max-w-[1600px] gap-5 overflow-x-auto px-4 py-3">
+        <nav className="mx-auto flex max-w-[1600px] gap-7 overflow-x-auto px-4 py-3.5">
           {navItems.map((item) => (
             <Link
               key={item.label}
               to={item.href}
-              className={`shrink-0 text-[11px] font-semibold uppercase ${
-                pathname === item.href ? "text-[#3977ed]" : "text-slate-600"
+              className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-extrabold uppercase tracking-wide transition-colors ${
+                pathname === item.href
+                  ? "border-[#3977ed] bg-[#3977ed] text-white shadow-sm"
+                  : "border-transparent text-slate-700 hover:bg-blue-50 hover:text-[#3977ed]"
               }`}
             >
               {item.label}

@@ -13,6 +13,7 @@ import {
   CreditCard,
   Eye,
   LayoutDashboard,
+  Lock,
   LogOut,
   PackagePlus,
   Pencil,
@@ -22,6 +23,7 @@ import {
   Sparkles,
   Trash2,
   Truck,
+  Unlock,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -693,12 +695,26 @@ export function AdminDashboardPage() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!window.confirm("Bạn có chắc muốn xóa hoặc vô hiệu hóa người dùng này?")) return;
+    if (!window.confirm("Bạn có chắc muốn khóa tài khoản người dùng này?")) return;
 
     try {
-      await usersApi.remove(userId);
-      setUsers((prev) => prev.filter((item) => item._id !== userId));
-      toast.success("Đã xóa người dùng");
+      const response = await usersApi.remove(userId);
+      setUsers((prev) => prev.map((item) => (item._id === userId ? response.user : item)));
+      toast.success("Đã khóa tài khoản người dùng");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const handleUserStatusChange = async (selectedUser: UserProfile) => {
+    const nextStatus = !selectedUser.isActive;
+    const action = nextStatus ? "mở khóa" : "khóa";
+    if (!window.confirm(`Bạn có chắc muốn ${action} tài khoản này?`)) return;
+
+    try {
+      const response = await usersApi.update(selectedUser._id, { isActive: nextStatus });
+      setUsers((prev) => prev.map((item) => (item._id === selectedUser._id ? response.user : item)));
+      toast.success(nextStatus ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản");
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
@@ -724,6 +740,20 @@ export function AdminDashboardPage() {
       setPayments((prev) => prev.map((item) => (item._id === paymentId ? response.payment : item)));
       void loadOrders();
       toast.success("Cập nhật thanh toán thành công");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const handleDeletePayment = async (payment: Payment) => {
+    const paymentCode = payment._id.slice(-8).toUpperCase();
+    if (!window.confirm(`Bạn có chắc muốn xóa thanh toán #${paymentCode}?`)) return;
+
+    try {
+      await paymentsApi.remove(payment._id);
+      setPayments((prev) => prev.filter((item) => item._id !== payment._id));
+      await Promise.all([loadPayments(paymentsPage), loadOrders()]);
+      toast.success("Đã xóa thanh toán");
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
@@ -1144,9 +1174,15 @@ export function AdminDashboardPage() {
                                 <Button size="icon" variant="outline" onClick={() => openEditUserDialog(item)} title="Sửa người dùng">
                                   <Pencil className="h-4 w-4" />
                                 </Button>
-                                <Button size="icon" variant="outline" className="text-red-600" onClick={() => void handleDeleteUser(item._id)} title="Xóa người dùng">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {item.isActive ? (
+                                  <Button size="icon" variant="outline" className="text-red-600" onClick={() => void handleDeleteUser(item._id)} title="Khóa tài khoản">
+                                    <Lock className="h-4 w-4" />
+                                  </Button>
+                                ) : (
+                                  <Button size="icon" variant="outline" className="text-emerald-600" onClick={() => void handleUserStatusChange(item)} title="Mở khóa tài khoản">
+                                    <Unlock className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -1245,7 +1281,7 @@ export function AdminDashboardPage() {
                     title="Danh sách thanh toán"
                     description="Bảng quản lý dữ liệu thanh toán"
                     searchValue={paymentSearch}
-                    searchPlaceholder="Tìm mã thanh toán, nhà cung cấp, người dùng..."
+                    searchPlaceholder="Tìm mã đơn PayOS, mã thanh toán, nhà cung cấp, người dùng..."
                     onSearchChange={setPaymentSearch}
                     onRefresh={() => void loadPayments()}
                     action={
@@ -1269,20 +1305,19 @@ export function AdminDashboardPage() {
                         <TableHead>Nhà cung cấp</TableHead>
                         <TableHead>Số tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>
-                        <TableHead>Đối tượng</TableHead>
+                        <TableHead>Order code</TableHead>
                         <TableHead>Ngày tạo</TableHead>
+                        <TableHead className="text-right">Thao tác</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loadingPayments ? (
-                        <EmptyRow colSpan={7} text="Đang tải thanh toán..." />
+                        <EmptyRow colSpan={8} text="Đang tải thanh toán..." />
                       ) : filteredPayments.length === 0 ? (
-                        <EmptyRow colSpan={7} text="Không có thanh toán phù hợp" />
+                        <EmptyRow colSpan={8} text="Không có thanh toán phù hợp" />
                       ) : (
                         filteredPayments.map((item) => {
                           const paymentUser = typeof item.user === "object" ? item.user : null;
-                          const order = typeof item.order === "object" ? item.order : null;
-                          const aiTransaction = typeof item.aiTransaction === "object" ? item.aiTransaction : null;
                           return (
                             <TableRow key={item._id}>
                               <TableCell className="font-mono text-xs">#{item._id.slice(-8).toUpperCase()}</TableCell>
@@ -1301,16 +1336,19 @@ export function AdminDashboardPage() {
                                   {adminPaymentStatuses.map((status) => <option key={status} value={status}>{paymentStatusLabels[status]}</option>)}
                                 </select>
                               </TableCell>
-                              <TableCell className="font-mono text-xs">
-                                {item.targetType === "AI_PACKAGE"
-                                  ? aiTransaction?._id
-                                    ? `AI #${aiTransaction._id.slice(-8).toUpperCase()}`
-                                    : "AI package"
-                                  : order?._id
-                                    ? `#${order._id.slice(-8).toUpperCase()}`
-                                    : "--"}
-                              </TableCell>
+                              <TableCell className="font-mono text-xs">{item.orderCode ?? "--"}</TableCell>
                               <TableCell>{dateTime(item.createdAt)}</TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="text-red-600"
+                                  onClick={() => void handleDeletePayment(item)}
+                                  title="Xóa thanh toán"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           );
                         })

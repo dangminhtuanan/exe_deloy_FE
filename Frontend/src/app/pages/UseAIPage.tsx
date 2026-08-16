@@ -27,7 +27,7 @@ import {
   Upload,
   Search,
   Download,
-  Share2,
+  Eye,
   RotateCcw,
   Pencil,
   Trash2
@@ -75,6 +75,7 @@ const MIX_MATCH_CREDIT_COST = 2;
 type ClothingImageType = 'upper' | 'lower' | 'full_set';
 
 interface SavedClothingImage {
+  id?: string;
   url: string;
   clothType: ClothingImageType;
   name: string;
@@ -84,6 +85,7 @@ interface SavedClothingImage {
 }
 
 interface SavedModelProfile {
+  id?: string;
   url: string;
   name: string;
   gender: '' | 'men' | 'women' | 'unisex';
@@ -107,6 +109,51 @@ interface UseAINavigationState {
   returnTo?: string;
   selectedProductId?: string;
 }
+
+type SaveFilePicker = (options?: {
+  suggestedName?: string;
+  types?: Array<{
+    description: string;
+    accept: Record<string, string[]>;
+  }>;
+}) => Promise<{
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+}>;
+
+const convertImageBlobToPng = (sourceBlob: Blob): Promise<Blob> => new Promise((resolve, reject) => {
+  const objectUrl = URL.createObjectURL(sourceBlob);
+  const image = new Image();
+  const cleanup = () => URL.revokeObjectURL(objectUrl);
+
+  image.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d');
+
+    if (!context || canvas.width === 0 || canvas.height === 0) {
+      cleanup();
+      reject(new Error('Dữ liệu ảnh không hợp lệ'));
+      return;
+    }
+
+    context.drawImage(image, 0, 0);
+    canvas.toBlob((pngBlob) => {
+      cleanup();
+      if (pngBlob) resolve(pngBlob);
+      else reject(new Error('Không thể chuyển ảnh sang định dạng PNG'));
+    }, 'image/png');
+  };
+
+  image.onerror = () => {
+    cleanup();
+    reject(new Error('Tệp tải về không phải là ảnh hợp lệ'));
+  };
+  image.src = objectUrl;
+});
 
 function getUploadedModelStorageKey() {
   const userId = getStoredAuthSession()?.profile?._id || 'guest';
@@ -557,10 +604,14 @@ const AIHistoryView = ({
   historyItems,
   isLoading,
   onRefresh,
+  onDownload,
+  onPreview,
 }: {
   historyItems: AIOutfitHistoryItem[];
   isLoading: boolean;
   onRefresh: () => void;
+  onDownload: (item: AIOutfitHistoryItem) => void;
+  onPreview: (imageUrl: string) => void;
 }) => (
   <div className="flex-1 overflow-y-auto bg-[#F9F9FB] p-4 md:p-6 lg:px-8">
     <div className="mx-auto w-full max-w-[1440px]">
@@ -599,12 +650,12 @@ const AIHistoryView = ({
             const lowerClothingImageUrl = getLowerClothingImageUrl(item);
 
             return (
-            <div key={item._id} className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-              <div className="relative aspect-[3/4] bg-gray-100">
+            <div key={item._id} className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+              <div className="relative h-80 shrink-0 bg-gray-100 sm:h-96 2xl:h-[420px]">
                 <img
                   src={item.resultImageUrl}
                   alt={historyTypeLabel(item)}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain object-top"
                 />
                 <div className="absolute left-2 top-2 rounded-md bg-white/90 px-2 py-1 text-[11px] font-semibold text-gray-800 shadow-sm">
                   {historyTypeLabel(item)}
@@ -614,7 +665,7 @@ const AIHistoryView = ({
                 </div>
               </div>
 
-              <div className="space-y-3 p-3">
+              <div className="flex flex-1 flex-col gap-3 p-3">
                 <div>
                   <p className="line-clamp-1 text-sm font-semibold text-gray-900">
                     {item.product?.name || (item.clothType === 'combo' ? 'Outfit mix and match' : 'Thử đồ AI')}
@@ -622,29 +673,38 @@ const AIHistoryView = ({
                   <p className="mt-0.5 text-xs text-gray-500">{formatHistoryDate(item.createdAt)}</p>
                 </div>
 
-                <div className={`grid gap-2 ${lowerClothingImageUrl ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                  <div className="aspect-[3/4] overflow-hidden rounded-md bg-gray-100">
-                    <img src={item.modelImageUrl} alt="Model" className="h-full w-full object-cover" />
+                <div className={`grid h-28 shrink-0 gap-2 ${lowerClothingImageUrl ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  <div className="h-28 overflow-hidden rounded-md bg-gray-100">
+                    <img src={item.modelImageUrl} alt="Model" className="h-full w-full object-contain object-top" />
                   </div>
-                  <div className="aspect-[3/4] overflow-hidden rounded-md bg-gray-100">
-                    <img src={item.clothingImageUrl} alt="Clothing" className="h-full w-full object-cover" />
+                  <div className="h-28 overflow-hidden rounded-md bg-gray-100">
+                    <img src={item.clothingImageUrl} alt="Clothing" className="h-full w-full object-contain object-top" />
                   </div>
                   {lowerClothingImageUrl && (
-                    <div className="aspect-[3/4] overflow-hidden rounded-md bg-gray-100">
-                      <img src={lowerClothingImageUrl} alt="Lower clothing" className="h-full w-full object-cover" />
+                    <div className="h-28 overflow-hidden rounded-md bg-gray-100">
+                      <img src={lowerClothingImageUrl} alt="Lower clothing" className="h-full w-full object-contain object-top" />
                     </div>
                   )}
                 </div>
 
-                <a
-                  href={item.resultImageUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-lg bg-[#20B29A] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#1a9682]"
-                >
-                  <Download className="h-4 w-4" />
-                  Mở ảnh kết quả
-                </a>
+                <div className="mt-auto grid w-full grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onDownload(item)}
+                    className="inline-flex h-10 min-w-0 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#20B29A] px-2 text-xs font-semibold text-white transition-colors hover:bg-[#1a9682]"
+                  >
+                    <Download className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Tải xuống</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onPreview(item.resultImageUrl)}
+                    className="inline-flex h-10 min-w-0 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                  >
+                    <Eye className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Xem ảnh</span>
+                  </button>
+                </div>
               </div>
             </div>
             );
@@ -1143,14 +1203,13 @@ export function UseAIPage() {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedResult, setGeneratedResult] = useState<string | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [selectedClothing, setSelectedClothing] = useState<number | null>(null);
   const [activeComboSlot, setActiveComboSlot] = useState<ComboClothingSlot>('upper');
   const [comboUpperSelection, setComboUpperSelection] = useState<TryOnClothingSelection | null>(null);
   const [comboLowerSelection, setComboLowerSelection] = useState<TryOnClothingSelection | null>(null);
   const [clothingLibraryTab, setClothingLibraryTab] = useState(0);
-  const [uploadedClothingImages, setUploadedClothingImages] = useState<SavedClothingImage[]>(
-    () => loadUploadedClothingImages()
-  );
+  const [uploadedClothingImages, setUploadedClothingImages] = useState<SavedClothingImage[]>([]);
   const [customClothingImageUrl, setCustomClothingImageUrl] = useState<string | null>(null);
   const [customClothingType, setCustomClothingType] = useState<ClothingImageType>('upper');
   const [isUploadingClothing, setIsUploadingClothing] = useState(false);
@@ -1166,8 +1225,8 @@ export function UseAIPage() {
   const [stylingOutfit, setStylingOutfit] = useState<{ top?: Product; bottom?: Product } | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [uploadedModelImages, setUploadedModelImages] = useState<string[]>(() => loadUploadedModelImages());
-  const [savedModelProfiles, setSavedModelProfiles] = useState<SavedModelProfile[]>(() => loadSavedModelProfiles());
+  const [uploadedModelImages, setUploadedModelImages] = useState<string[]>([]);
+  const [savedModelProfiles, setSavedModelProfiles] = useState<SavedModelProfile[]>([]);
   const [isUploadingModel, setIsUploadingModel] = useState(false);
   const [brokenImageUrls, setBrokenImageUrls] = useState<Set<string>>(() => new Set());
   const [historyItems, setHistoryItems] = useState<AIOutfitHistoryItem[]>([]);
@@ -1181,9 +1240,125 @@ export function UseAIPage() {
   const generationLockRef = useRef(false);
   const initialProductSelectionAppliedRef = useRef(false);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUploadedClothingImages([]);
+      setUploadedModelImages([]);
+      setSavedModelProfiles([]);
+      return;
+    }
+    let cancelled = false;
+    void uploadApi.getMyLibrary().then(({ assets }) => {
+      if (cancelled) return;
+      const clothing = assets.filter((asset) => asset.kind === 'clothing').map((asset) => ({
+        id: asset.id, url: asset.url, name: asset.name || 'Trang phục',
+        clothType: asset.clothType || 'upper', color: asset.color,
+        tags: asset.tags || [], createdAt: asset.createdAt,
+      } satisfies SavedClothingImage));
+      const models = assets.filter((asset) => asset.kind === 'model').map((asset) => ({
+        id: asset.id, url: asset.url, name: asset.name || 'Mẫu của tôi',
+        gender: asset.gender as SavedModelProfile['gender'], ageGroup: asset.ageGroup,
+        ethnicity: asset.ethnicity, skinTone: asset.skinTone, hairColor: asset.hairColor,
+        tags: asset.tags || [], createdAt: asset.createdAt,
+      } satisfies SavedModelProfile));
+      setUploadedClothingImages(clothing);
+      setSavedModelProfiles(models);
+      setUploadedModelImages(models.map((item) => item.url));
+    }).catch((error) => toast.error('Không thể tải thư viện ảnh', { description: getErrorMessage(error) }));
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
+
   const navigateFromSidebar = (path: string) => {
     setMobileMenuOpen(false);
     navigate(path);
+  };
+
+  const downloadResultImage = async (imageUrl: string, filePrefix: string) => {
+    const downloadTimestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '-').replace('Z', '');
+    const suggestedName = `${filePrefix}-${downloadTimestamp}.png`;
+    const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+      || (navigator.maxTouchPoints > 1 && window.matchMedia('(max-width: 1024px)').matches);
+    const saveFilePicker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
+    let fileHandle: Awaited<ReturnType<SaveFilePicker>> | null = null;
+
+    // Mobile browsers must use the operating system share sheet. Opening a
+    // file picker here sends the image to Downloads instead of Photos/Gallery.
+    if (!isMobileDevice && saveFilePicker) {
+      try {
+        fileHandle = await saveFilePicker({
+          suggestedName,
+          types: [{
+            description: 'Ảnh PNG',
+            accept: { 'image/png': ['.png'] },
+          }],
+        });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        fileHandle = null;
+      }
+    }
+
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error('Không thể tải dữ liệu ảnh');
+      // Providers can return JPEG/WebP bytes behind a .png URL. Re-encode the
+      // actual image so iOS Photos does not receive a mismatched/corrupt file.
+      const downloadedBlob = await response.blob();
+      const imageBlob = await convertImageBlobToPng(downloadedBlob);
+      const imageFile = new File([imageBlob], suggestedName, {
+        type: 'image/png',
+      });
+      if (
+        isMobileDevice
+        && typeof navigator.share === 'function'
+        && navigator.canShare?.({ files: [imageFile] })
+      ) {
+        try {
+          await navigator.share({
+            files: [imageFile],
+            title: 'Ảnh kết quả Outfio',
+          });
+          toast.success('Chọn “Lưu hình ảnh” để đưa ảnh vào ứng dụng Ảnh');
+          return;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+        }
+      }
+
+      if (isMobileDevice) {
+        const objectUrl = URL.createObjectURL(imageFile);
+        const previewWindow = window.open(objectUrl, '_blank');
+        // Mobile browsers may keep reading the blob after the new tab opens.
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 120_000);
+        if (previewWindow) {
+          toast.info('Nhấn giữ ảnh rồi chọn “Lưu vào Ảnh”', {
+            description: 'Trình duyệt này không hỗ trợ gửi ảnh trực tiếp tới thư viện.',
+          });
+          return;
+        }
+      }
+
+      if (fileHandle) {
+        const writable = await fileHandle.createWritable();
+        await writable.write(imageBlob);
+        await writable.close();
+      } else {
+        const objectUrl = URL.createObjectURL(imageFile);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = objectUrl;
+        downloadLink.download = suggestedName;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+        // Revoking synchronously can truncate the file on Android/iOS while
+        // the operating system is still copying it into Photos/Downloads.
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 120_000);
+      }
+
+      toast.success('Đã lưu ảnh xuống thiết bị');
+    } catch (error) {
+      toast.error('Không thể tải ảnh', { description: getErrorMessage(error) });
+    }
   };
 
   const openCreateMode = (mode: 0 | 1) => {
@@ -1442,19 +1617,18 @@ export function UseAIPage() {
 
     setIsUploadingModel(true);
     try {
-      const response = await uploadApi.uploadImage(file);
+      const response = await uploadApi.uploadImage(file, 'model');
       const newProfile: SavedModelProfile = {
         ...createDefaultModelProfile(response.url, savedModelProfiles.length),
-        createdAt: new Date().toISOString(),
+        id: response.asset.id,
+        createdAt: response.asset.createdAt,
       };
       setUploadedModelImages((prev) => {
         const next = getUniqueModelUrls([response.url, ...prev]);
-        saveUploadedModelImages(next);
         return next;
       });
       setSavedModelProfiles((previousProfiles) => {
         const nextProfiles = [newProfile, ...previousProfiles.filter((profile) => profile.url !== response.url)];
-        saveModelProfiles(nextProfiles);
         return nextProfiles;
       });
       if (openEditor) setEditingModel(newProfile);
@@ -1501,9 +1675,10 @@ export function UseAIPage() {
 
     setIsUploadingClothing(true);
     try {
-      const response = await uploadApi.uploadImage(file);
       const uploadedClothingType = selectAfterUpload && clothesTab === 1 ? activeComboSlot : customClothingType;
+      const response = await uploadApi.uploadImage(file, 'clothing', uploadedClothingType);
       const uploadedItem: SavedClothingImage = {
+        id: response.asset.id,
         url: response.url,
         clothType: uploadedClothingType,
         name: `Trang phục ${uploadedClothingImages.length + 1}`,
@@ -1513,7 +1688,6 @@ export function UseAIPage() {
       };
       setUploadedClothingImages((previousItems) => {
         const nextItems = getUniqueClothingImages([uploadedItem, ...previousItems]);
-        saveUploadedClothingImages(nextItems);
         return nextItems;
       });
       if (selectAfterUpload && clothesTab === 1) {
@@ -1583,11 +1757,13 @@ export function UseAIPage() {
     setCustomClothingType(clothType);
     if (!customClothingImageUrl) return;
 
+    const savedItem = uploadedClothingImages.find((item) => item.url === customClothingImageUrl);
+    if (savedItem?.id) void uploadApi.updateLibraryImage(savedItem.id, { clothType });
+
     setUploadedClothingImages((previousItems) => {
       const nextItems = previousItems.map((item) =>
         item.url === customClothingImageUrl ? { ...item, clothType } : item
       );
-      saveUploadedClothingImages(nextItems);
       return nextItems;
     });
   };
@@ -1595,7 +1771,6 @@ export function UseAIPage() {
   const removeUploadedClothing = (url: string) => {
     setUploadedClothingImages((previousItems) => {
       const nextItems = previousItems.filter((item) => item.url !== url);
-      saveUploadedClothingImages(nextItems);
       return nextItems;
     });
     if (customClothingImageUrl === url) setCustomClothingImageUrl(null);
@@ -1619,10 +1794,10 @@ export function UseAIPage() {
     if (file) void uploadModelImage(file, 'try-on', true, false);
   };
 
-  const saveClothingDetails = (updatedItem: SavedClothingImage) => {
+  const saveClothingDetails = async (updatedItem: SavedClothingImage) => {
+    if (updatedItem.id) await uploadApi.updateLibraryImage(updatedItem.id, updatedItem);
     setUploadedClothingImages((previousItems) => {
       const nextItems = previousItems.map((item) => item.url === updatedItem.url ? updatedItem : item);
-      saveUploadedClothingImages(nextItems);
       return nextItems;
     });
     if (customClothingImageUrl === updatedItem.url) setCustomClothingType(updatedItem.clothType);
@@ -1630,10 +1805,10 @@ export function UseAIPage() {
     toast.success('Đã cập nhật quần áo');
   };
 
-  const saveModelDetails = (updatedItem: SavedModelProfile) => {
+  const saveModelDetails = async (updatedItem: SavedModelProfile) => {
+    if (updatedItem.id) await uploadApi.updateLibraryImage(updatedItem.id, updatedItem);
     setSavedModelProfiles((previousProfiles) => {
       const nextProfiles = previousProfiles.map((profile) => profile.url === updatedItem.url ? updatedItem : profile);
-      saveModelProfiles(nextProfiles);
       return nextProfiles;
     });
     setEditingModel(null);
@@ -1661,23 +1836,23 @@ export function UseAIPage() {
     setActiveResource('create');
   };
 
-  const deleteClothingFromLibrary = (item: SavedClothingImage) => {
+  const deleteClothingFromLibrary = async (item: SavedClothingImage) => {
     if (!window.confirm(`Xóa "${item.name}" khỏi tủ đồ?`)) return;
+    if (item.id) await uploadApi.deleteLibraryImage(item.id);
     removeUploadedClothing(item.url);
     if (editingClothing?.url === item.url) setEditingClothing(null);
     toast.success('Đã xóa khỏi tủ đồ');
   };
 
-  const deleteModelFromLibrary = (item: SavedModelProfile) => {
+  const deleteModelFromLibrary = async (item: SavedModelProfile) => {
     if (!window.confirm(`Xóa "${item.name}" khỏi danh sách mẫu?`)) return;
+    if (item.id) await uploadApi.deleteLibraryImage(item.id);
     setUploadedModelImages((previousUrls) => {
       const nextUrls = previousUrls.filter((url) => url !== item.url);
-      saveUploadedModelImages(nextUrls);
       return nextUrls;
     });
     setSavedModelProfiles((previousProfiles) => {
       const nextProfiles = previousProfiles.filter((profile) => profile.url !== item.url);
-      saveModelProfiles(nextProfiles);
       return nextProfiles;
     });
     setSelectedModel(null);
@@ -2034,6 +2209,11 @@ export function UseAIPage() {
             historyItems={historyItems}
             isLoading={isLoadingHistory}
             onRefresh={() => void loadHistory()}
+            onDownload={(item) => void downloadResultImage(
+              item.resultImageUrl,
+              item.clothType === 'combo' ? 'outfio-phoi-do-ai' : 'outfio-thu-do-ai'
+            )}
+            onPreview={setPreviewImageUrl}
           />
         ) : activeResource === 'wardrobe' ? (
           <AssetLibraryView
@@ -2762,41 +2942,26 @@ export function UseAIPage() {
                 {/* Action Buttons */}
                 <div className="p-4 md:p-6 bg-gray-50 border-t border-gray-100">
                   <div className="flex flex-col md:flex-row gap-3">
-                    <button className="flex-1 bg-[#20B29A] hover:bg-[#1a9682] text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => void downloadResultImage(generatedResult, 'outfio-thu-do-ai')}
+                      className="flex-1 bg-[#20B29A] hover:bg-[#1a9682] text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm"
+                    >
                       <Download className="w-5 h-5" />
                       Tải xuống
                     </button>
-                    <button className="flex-1 bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 border border-gray-200 transition-colors">
-                      <Share2 className="w-5 h-5" />
-                      Chia sẻ
-                    </button>
-                    <button className="md:w-auto px-6 bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-xl flex items-center justify-center gap-2 border border-gray-200 transition-colors">
-                      <Plus className="w-5 h-5" />
-                      Lưu vào bộ sưu tập
+                    <button
+                      type="button"
+                      onClick={() => setPreviewImageUrl(generatedResult)}
+                      className="flex-1 bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 border border-gray-200 transition-colors"
+                    >
+                      <Eye className="w-5 h-5" />
+                      Xem ảnh
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Quick Actions Below */}
-              <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-                <button className="bg-white hover:bg-gray-50 p-4 rounded-xl border border-gray-200 text-center transition-colors">
-                  <div className="text-2xl mb-2">✨</div>
-                  <p className="text-xs font-medium text-gray-900">Thử trang phục khác</p>
-                </button>
-                <button className="bg-white hover:bg-gray-50 p-4 rounded-xl border border-gray-200 text-center transition-colors">
-                  <div className="text-2xl mb-2">👥</div>
-                  <p className="text-xs font-medium text-gray-900">Đổi mẫu</p>
-                </button>
-                <button className="bg-white hover:bg-gray-50 p-4 rounded-xl border border-gray-200 text-center transition-colors">
-                  <div className="text-2xl mb-2">🎨</div>
-                  <p className="text-xs font-medium text-gray-900">Chỉnh sửa</p>
-                </button>
-                <button className="bg-white hover:bg-gray-50 p-4 rounded-xl border border-gray-200 text-center transition-colors">
-                  <div className="text-2xl mb-2">📸</div>
-                  <p className="text-xs font-medium text-gray-900">Tạo biến thể</p>
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -2855,10 +3020,7 @@ export function UseAIPage() {
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
-                        <button className="flex-1 bg-[#20B29A] hover:bg-[#1a9682] text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
-                          Thử ngay
-                        </button>
+                      <div className="flex justify-end">
                         <button className="px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center">
                           <Upload className="w-4 h-4" />
                         </button>
@@ -2926,39 +3088,26 @@ export function UseAIPage() {
                 {/* Action Buttons */}
                 <div className="p-4 md:p-6 bg-gray-50 border-t border-gray-100">
                   <div className="flex flex-col md:flex-row gap-3">
-                    <button className="flex-1 bg-[#20B29A] hover:bg-[#1a9682] text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => void downloadResultImage(stylingResult, 'outfio-phoi-do-ai')}
+                      className="flex-1 bg-[#20B29A] hover:bg-[#1a9682] text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm"
+                    >
                       <Download className="w-5 h-5" />
                       Tải xuống
                     </button>
-                    <button className="flex-1 bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 border border-gray-200 transition-colors">
-                      <Share2 className="w-5 h-5" />
-                      Chia sẻ
-                    </button>
-                    <button className="md:w-auto px-6 bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-xl flex items-center justify-center gap-2 border border-gray-200 transition-colors">
-                      <Plus className="w-5 h-5" />
-                      Lưu vào bộ sưu tập
+                    <button
+                      type="button"
+                      onClick={() => setPreviewImageUrl(stylingResult)}
+                      className="flex-1 bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 border border-gray-200 transition-colors"
+                    >
+                      <Eye className="w-5 h-5" />
+                      Xem ảnh
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Additional Suggestions */}
-              <div className="mt-6">
-                <h3 className="text-base font-semibold text-gray-900 mb-4">Gợi ý khác</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {STYLE_SUGGESTIONS.slice(0, 3).map((style) => (
-                    <div key={style.id} className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition-all cursor-pointer">
-                      <div className="aspect-[3/4] relative">
-                        <img src={style.image} alt={style.name} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="p-3">
-                        <p className="text-xs font-medium text-gray-900 mb-1">{style.name}</p>
-                        <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md">{style.occasion}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -2990,6 +3139,33 @@ export function UseAIPage() {
       onSave={(item) => saveModelDetails(item as SavedModelProfile)}
       onTryOn={(item) => useModelFromLibrary(item as SavedModelProfile)}
     />
+
+    {previewImageUrl && (
+      <div
+        className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-2 backdrop-blur-sm sm:p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Xem ảnh kết quả"
+        onClick={() => setPreviewImageUrl(null)}
+      >
+        <div className="relative flex h-full w-full items-center justify-center">
+          <img
+            src={previewImageUrl}
+            alt="Ảnh kết quả AI kích thước lớn"
+            className="h-full w-full object-contain shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          />
+          <button
+            type="button"
+            onClick={() => setPreviewImageUrl(null)}
+            className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-gray-800 shadow-lg transition-colors hover:bg-white sm:right-2 sm:top-2"
+            aria-label="Đóng ảnh"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    )}
 
     {/* Plan Modal */}
     {isPlanModalOpen && (
