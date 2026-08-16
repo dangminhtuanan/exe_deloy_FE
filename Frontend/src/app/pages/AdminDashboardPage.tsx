@@ -1281,7 +1281,7 @@ export function AdminDashboardPage() {
                     title="Danh sách thanh toán"
                     description="Lấy dữ liệu từ API /payments, cập nhật bằng /payments/:id/status"
                     searchValue={paymentSearch}
-                    searchPlaceholder="Tìm mã thanh toán, nhà cung cấp, người dùng..."
+                    searchPlaceholder="Tìm mã đơn PayOS, mã thanh toán, nhà cung cấp, người dùng..."
                     onSearchChange={setPaymentSearch}
                     onRefresh={() => void loadPayments()}
                     action={
@@ -1305,7 +1305,7 @@ export function AdminDashboardPage() {
                         <TableHead>Nhà cung cấp</TableHead>
                         <TableHead>Số tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>
-                        <TableHead>Đối tượng</TableHead>
+                        <TableHead>Order code</TableHead>
                         <TableHead>Ngày tạo</TableHead>
                         <TableHead className="text-right">Thao tác</TableHead>
                       </TableRow>
@@ -1318,8 +1318,6 @@ export function AdminDashboardPage() {
                       ) : (
                         filteredPayments.map((item) => {
                           const paymentUser = typeof item.user === "object" ? item.user : null;
-                          const order = typeof item.order === "object" ? item.order : null;
-                          const aiTransaction = typeof item.aiTransaction === "object" ? item.aiTransaction : null;
                           return (
                             <TableRow key={item._id}>
                               <TableCell className="font-mono text-xs">#{item._id.slice(-8).toUpperCase()}</TableCell>
@@ -1338,15 +1336,7 @@ export function AdminDashboardPage() {
                                   {adminPaymentStatuses.map((status) => <option key={status} value={status}>{paymentStatusLabels[status]}</option>)}
                                 </select>
                               </TableCell>
-                              <TableCell className="font-mono text-xs">
-                                {item.targetType === "AI_PACKAGE"
-                                  ? aiTransaction?._id
-                                    ? `AI #${aiTransaction._id.slice(-8).toUpperCase()}`
-                                    : "AI package"
-                                  : order?._id
-                                    ? `#${order._id.slice(-8).toUpperCase()}`
-                                    : "--"}
-                              </TableCell>
+                              <TableCell className="font-mono text-xs">{item.orderCode ?? "--"}</TableCell>
                               <TableCell>{dateTime(item.createdAt)}</TableCell>
                               <TableCell className="text-right">
                                 <Button
