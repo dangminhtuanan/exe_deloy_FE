@@ -1085,7 +1085,7 @@ export function AdminDashboardPage() {
                 <CardHeader className="gap-4">
                   <Toolbar
                     title="Danh sách người dùng"
-                    description="Lấy dữ liệu từ API /users"
+                    description="Bảng quản lý dữ liệu người dùng"
                     searchValue={userSearch}
                     searchPlaceholder="Tìm tên, email, vai trò..."
                     onSearchChange={setUserSearch}
@@ -1164,7 +1164,7 @@ export function AdminDashboardPage() {
                 <CardHeader className="gap-4">
                   <Toolbar
                     title="Danh sách đơn hàng"
-                    description="Lấy dữ liệu từ API /orders, cập nhật trạng thái bằng /orders/:id/status"
+                    description="Bảng quản lý dữ liệu đơn hàng"
                     searchValue={orderSearch}
                     searchPlaceholder="Tìm mã đơn, khách hàng, SĐT..."
                     onSearchChange={setOrderSearch}
@@ -1243,7 +1243,7 @@ export function AdminDashboardPage() {
                 <CardHeader className="gap-4">
                   <Toolbar
                     title="Danh sách thanh toán"
-                    description="Lấy dữ liệu từ API /payments, cập nhật bằng /payments/:id/status"
+                    description="Bảng quản lý dữ liệu thanh toán"
                     searchValue={paymentSearch}
                     searchPlaceholder="Tìm mã thanh toán, nhà cung cấp, người dùng..."
                     onSearchChange={setPaymentSearch}
@@ -1327,7 +1327,7 @@ export function AdminDashboardPage() {
                 <CardHeader className="gap-4">
                   <Toolbar
                     title="Danh sách giao hàng"
-                    description="Lấy dữ liệu từ API /shipping, cập nhật bằng /shipping/:id/status"
+                    description="Bảng quản lý dữ liệu giao hàng"
                     searchValue={shippingSearch}
                     searchPlaceholder="Tìm mã vận đơn, đơn hàng, người giao..."
                     onSearchChange={setShippingSearch}
@@ -1407,7 +1407,7 @@ export function AdminDashboardPage() {
                 <CardHeader className="gap-4">
                   <Toolbar
                     title="Danh sách sản phẩm"
-                    description="Lấy dữ liệu từ API /products, thêm/sửa/xóa bằng quyền quản trị"
+                    description="Bảng quản lý dữ liệu sản phẩm"
                     searchValue={productSearch}
                     searchPlaceholder="Tìm tên, thương hiệu, danh mục..."
                     onSearchChange={setProductSearch}
@@ -1475,7 +1475,7 @@ export function AdminDashboardPage() {
                 <CardHeader className="gap-4">
                   <Toolbar
                     title="Quản lý gói AI"
-                    description="Tạo, sửa, bật/tắt và xóa gói AI từ API /ai-packages"
+                    description="Bảng quản lý dữ liệu gói AI"
                     searchValue={packageSearch}
                     searchPlaceholder="Tìm tên gói, mô tả, feature..."
                     onSearchChange={setPackageSearch}
